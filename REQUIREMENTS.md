@@ -10,13 +10,13 @@ Pick five to ten features from the list below, or add your own of the same weigh
 
 ## Feature set
 
-- **Feature flag management.** Create, configure, activate, and retire feature flags.
-- **Environment-based configuration.** Manage flags independently across development, staging, and production.
-- **User and segment targeting.** Release features to specific users or audience groups.
-- **Progressive rollouts.** Gradually increase feature availability across users.
-- **Approval workflows.** Review, approve, and schedule flag changes.
-- **Experimentation and metrics.** Compare feature variations and measure their impact.
-- **Change history and rollbacks.** Track changes and restore previous flag configurations.
+- **Feature flag management.** Create boolean and multi-variant flags with a key, description, and default value. Configure, toggle, and retire them from one screen.
+- **Environment-based configuration.** Keep a separate flag state for development, staging, and production. Switch between environments and see which one you are editing.
+- **User and segment targeting.** Define audience segments by user attributes (email, plan, country). Serve a variation to a named user or a whole segment.
+- **Progressive rollouts.** Set a percentage of users who receive a variation. Raise it step by step and see the current split.
+- **Approval workflows.** Submit a flag change for review. A second user approves, rejects, or schedules it before it goes live.
+- **Experimentation and metrics.** Assign users to variations and record a conversion event per variation. Compare the results side by side.
+- **Change history and rollbacks.** Record who changed a flag, when, and what changed. Restore any earlier configuration in one click.
 
 ## Acceptance criteria
 
