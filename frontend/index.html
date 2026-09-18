@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <script>document.documentElement.dataset.theme = localStorage.getItem("featureflag-theme") === "light" ? "light" : "dark";</script>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#131314" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#f8fafd" media="(prefers-color-scheme: light)" />
+        <title>Feature Flag</title>
+        <style>
+            html, body, #root { width: 100%; min-width: 320px; min-height: 100%; margin: 0; }
+            body { background: #131314; }
+            html[data-theme="light"] body { background: #f8fafd; }
+        </style>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.jsx"></script>
+    </body>
+</html>
