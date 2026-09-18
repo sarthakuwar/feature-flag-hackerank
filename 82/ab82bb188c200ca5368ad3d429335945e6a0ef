@@ -1,0 +1,35 @@
+frontend/src/main.jsx
+  s_d9d2ec95c76c73::t_0f11ba6d985d3b 1-10
+frontend/package.json
+  s_d9d2ec95c76c73::t_c7fd41b5489582 1-20
+frontend/src/shared/api/client.js
+  s_d9d2ec95c76c73::t_56a0ac76996a72 1-20
+frontend/index.html
+  s_d9d2ec95c76c73::t_386904bb0bdc5d 1-21
+frontend/public/favicon.svg
+  s_d9d2ec95c76c73::t_c5cca1ba10d8d3 1-10
+frontend/src/App.jsx
+  s_d9d2ec95c76c73::t_69051cc052ba69 1-42
+frontend/vite.config.js
+  s_d9d2ec95c76c73::t_fb7b90d5662537 1-15
+frontend/.env.example
+  s_d9d2ec95c76c73::t_b50d01f44e8f43 1
+frontend/src/styles.css
+  s_d9d2ec95c76c73::t_dad5e009220425 1-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "82ab82bb188c200ca5368ad3d429335945e6a0ef",
+  "prompts": {},
+  "sessions": {
+    "s_d9d2ec95c76c73": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6d5fda31-1ca7-4a08-a83d-3be7235b42f9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
