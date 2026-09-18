@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#131314" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#f8fafd" media="(prefers-color-scheme: light)" />
+        <title>Feature Flag API</title>
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <style>
+            :root {
+                color-scheme: dark;
+                --surface: #1e1f20;
+                --surface-muted: #131314;
+                --border: #444746;
+                --ink: #e3e3e3;
+                --ink-strong: #e8eaed;
+                --muted: #9aa0a6;
+                --accent: #5ee6a0;
+                --accent-tint: #143327;
+                --on-accent: #06281a;
+                --danger: #f2b8b5;
+                --danger-container: #3b1f1c;
+            }
+
+            @media (prefers-color-scheme: light) {
+                :root {
+                    color-scheme: light;
+                    --surface: #fff;
+                    --surface-muted: #f8fafd;
+                    --border: #dadce0;
+                    --ink: #202124;
+                    --ink-strong: #3c4043;
+                    --muted: #5f6368;
+                    --accent: #0f9d58;
+                    --accent-tint: #e6f6ed;
+                    --on-accent: #fff;
+                    --danger: #b3261e;
+                    --danger-container: #fce8e6;
+                }
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                min-height: 100%;
+                margin: 0;
+            }
+
+            body {
+                display: grid;
+                min-width: 320px;
+                min-height: 100dvh;
+                padding: 24px;
+                place-items: center;
+                background: var(--surface-muted);
+                color: var(--ink);
+                font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            main {
+                width: 100%;
+                max-width: 440px;
+                text-align: center;
+            }
+
+            .brand {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                margin-bottom: 28px;
+                color: var(--ink-strong);
+                font-size: 25px;
+                letter-spacing: -0.35px;
+            }
+
+            .brand img {
+                width: 36px;
+                height: 36px;
+            }
+
+            .card {
+                margin-bottom: 24px;
+                padding: 20px;
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                background: var(--surface);
+                text-align: left;
+            }
+
+            .status {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 18px;
+                font-size: 15px;
+                font-weight: 500;
+            }
+
+            .status-dot {
+                width: 10px;
+                height: 10px;
+                flex: 0 0 auto;
+                border-radius: 50%;
+                background: var(--muted);
+            }
+
+            .status[data-state="ok"] {
+                color: var(--accent);
+            }
+
+            .status[data-state="ok"] .status-dot {
+                background: var(--accent);
+                box-shadow: 0 0 0 4px var(--accent-tint);
+                animation: pulse 2s ease-in-out infinite;
+            }
+
+            .status[data-state="down"] {
+                color: var(--danger);
+            }
+
+            .status[data-state="down"] .status-dot {
+                background: var(--danger);
+                box-shadow: 0 0 0 4px var(--danger-container);
+            }
+
+            @keyframes pulse {
+                50% {
+                    opacity: 0.55;
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .status-dot {
+                    animation: none !important;
+                }
+            }
+
+            dl {
+                display: grid;
+                grid-template-columns: auto minmax(0, 1fr);
+                gap: 10px 16px;
+                margin: 0;
+                font-size: 13px;
+            }
+
+            dt {
+                color: var(--muted);
+            }
+
+            dd {
+                margin: 0;
+                overflow: hidden;
+                color: var(--ink-strong);
+                font-family: ui-monospace, "SF Mono", Menlo, monospace;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            a {
+                display: grid;
+                min-height: 44px;
+                padding: 0 22px;
+                place-items: center;
+                border: 1px solid transparent;
+                border-radius: 22px;
+                font-size: 14px;
+                font-weight: 500;
+                letter-spacing: 0.1px;
+                text-decoration: none;
+            }
+
+            .secondary {
+                border-color: var(--border);
+                color: var(--accent);
+            }
+
+            .secondary:hover {
+                background: var(--accent-tint);
+            }
+
+            a:focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 2px;
+            }
+
+            footer {
+                margin-top: 24px;
+                color: var(--muted);
+                font-size: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <div class="brand"><img src="/favicon.svg" alt="" /><span>Feature Flag</span></div>
+
+            <div class="card">
+                <div class="status" id="status" data-state="checking">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Checking the server</span>
+                </div>
+                <dl>
+                    <dt>API</dt>
+                    <dd>/api/v1</dd>
+                    <dt>Database</dt>
+                    <dd id="database">Checking</dd>
+                </dl>
+            </div>
+
+            <div class="actions">
+                <a class="secondary" href="/api/v1/health">View the health endpoint</a>
+            </div>
+
+            <footer>Feature Flag API - backend service only</footer>
+        </main>
+
+        <script>
+            const status = document.getElementById("status");
+            const statusText = document.getElementById("status-text");
+            const database = document.getElementById("database");
+
+            function render(state, message, databaseLabel) {
+                status.dataset.state = state;
+                statusText.textContent = message;
+                database.textContent = databaseLabel;
+            }
+
+            fetch("/api/v1/health")
+                .then((response) => response.json())
+                .then((payload) => {
+                    const connected = payload?.data?.database === "connected";
+                    render(
+                        connected ? "ok" : "down",
+                        connected ? "Server running" : "Server degraded",
+                        connected ? "Connected" : "Not connected",
+                    );
+                })
+                .catch(() => render("down", "Server unreachable", "Unknown"));
+        </script>
+    </body>
+</html>
