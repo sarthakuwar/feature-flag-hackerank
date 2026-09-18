@@ -1,0 +1,133 @@
+backend/src/main/java/com/featureflag/flags/Variation.java
+  s_f485057211c477::t_2d262728aaa017 11-18,23-26,30-32,58-81
+backend/src/main/java/com/featureflag/flags/metrics/MetricsController.java
+  s_f485057211c477::t_a36e6ab1bd277e 1-59
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentControllerIT.java
+  s_f485057211c477::t_c021d50e153f79 1-123,130-237,245-278
+  s_f485057211c477::t_3afe1a06ac9592 124-129
+  s_f485057211c477::t_7910f56464a01b 238-244
+backend/src/main/java/com/featureflag/flags/dto/VariationRequest.java
+  s_f485057211c477::t_e1cc56d632e66f 3-10
+backend/src/test/java/com/featureflag/flags/FlagSeederIT.java
+  s_f485057211c477::t_b8bb0e7bf4ead1 17-18,69
+  s_f485057211c477::t_49b45950b8d246 115-116,122-123
+  s_f485057211c477::t_0d3c7de7798794 42-47
+  s_f485057211c477::t_dbce4d333089cf 70-101
+backend/src/main/java/com/featureflag/shared/AsyncConfig.java
+  s_f485057211c477::t_89f67134ba7b44 1-13
+backend/src/main/java/com/featureflag/flags/BanditAlgorithm.java
+  s_f485057211c477::t_7ef0820964ae40 1-7
+backend/src/main/java/com/featureflag/flags/experiment/BanditAllocator.java
+  s_f485057211c477::t_09778f2e3c0633 1-12
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_f485057211c477::t_99fccf6af2001d 42-47
+  s_f485057211c477::t_ff87254250d403 82-103
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_f485057211c477::t_72cab06a7b397d 200-210,231-235,248-249,252-253,259-266,272-274
+  s_f485057211c477::t_c1e72a184704be 4,18-19,250-251,267,374-375,627,734-735,817-818
+  s_f485057211c477::t_f23c8dbb89be35 318,327-337,344-350,352-373
+  s_f485057211c477::t_78287f1c8090b2 338-343
+  s_f485057211c477::t_b887a248c90147 616-623,626,631-639,641-657,675,682-733
+  s_f485057211c477::t_5ba878acc5dd4e 640
+  s_f485057211c477::t_9e43c014138830 658-667
+  s_f485057211c477::t_d2a5c1c20f3680 668-674,676-681
+  s_f485057211c477::t_185759d76ef9df 755-756,759-762,774-777,784-816
+  s_f485057211c477::t_594e2fcefe4967 351
+  s_f485057211c477::t_9dfc71a1babe47 214
+  s_f485057211c477::t_cd55774d75682d 174-179,211-213,215-218,221
+backend/src/main/java/com/featureflag/flags/StrategyType.java
+  s_f485057211c477::t_5f1c4e3b7f8cfe 6-7
+backend/src/main/java/com/featureflag/flags/dto/StrategyRequest.java
+  s_f485057211c477::t_7d87a002fefe3f 4,6,10-17
+backend/src/main/java/com/featureflag/flags/experiment/dto/SetWeightsRequest.java
+  s_f485057211c477::t_0fea230f2d5eb8 1-6
+backend/src/main/java/com/featureflag/flags/metrics/dto/VariationMetrics.java
+  s_f485057211c477::t_3644099ffebf2e 1-5
+backend/src/main/java/com/featureflag/flags/metrics/dto/ExperimentMetricsResponse.java
+  s_f485057211c477::t_c98288210c2453 1-10
+backend/src/main/java/com/featureflag/flags/experiment/ThompsonSamplingAllocator.java
+  s_f485057211c477::t_44d50012c20183 1-121
+backend/src/main/java/com/featureflag/flags/experiment/ExperimentService.java
+  s_f485057211c477::t_e1b69ee2e0cdd4 1-305
+backend/src/main/java/com/featureflag/flags/experiment/EpsilonGreedyAllocator.java
+  s_f485057211c477::t_96769fcb3b6c63 16-19,37,43-50
+  s_f485057211c477::t_d9be67fea83458 68-79
+  s_f485057211c477::t_30a5b42da3afc7 1-15,20-36,38-42,51-67,80
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceTest.java
+  s_f485057211c477::t_7c2d0c78b4ae18 1-246
+backend/src/test/java/com/featureflag/flags/FlagEvalControllerIT.java
+  s_f485057211c477::t_221789c673b3ad 26-27,45-47,53
+  s_f485057211c477::t_a0ccdcad1b000c 140-180
+backend/src/main/java/com/featureflag/flags/PayloadType.java
+  s_f485057211c477::t_7f8677e7c5e11d 1-8
+backend/src/test/java/com/featureflag/flags/metrics/MetricsServiceTest.java
+  s_f485057211c477::t_cbd7844550bc63 1-143
+backend/src/main/java/com/featureflag/flags/experiment/dto/PromoteRequest.java
+  s_f485057211c477::t_47b43b3b86f4e9 1-4
+backend/src/main/java/com/featureflag/flags/metrics/MetricsService.java
+  s_f485057211c477::t_df780c77059ff8 14
+  s_f485057211c477::t_7ac04532a29d36 134
+  s_f485057211c477::t_ea27af38db31a1 1-13,15-133,135-166
+backend/src/main/java/com/featureflag/flags/EvaluationReason.java
+  s_f485057211c477::t_3da418d2f3fc65 7
+backend/src/main/java/com/featureflag/flags/metrics/ConversionEvent.java
+  s_f485057211c477::t_fbef5fd65d69e1 1-109
+backend/src/main/java/com/featureflag/flags/metrics/dto/ConversionRequest.java
+  s_f485057211c477::t_5f433767b334ba 1-7
+backend/src/main/java/com/featureflag/flags/experiment/ExperimentController.java
+  s_f485057211c477::t_f8e8bee70d3c05 1-69
+backend/src/main/java/com/featureflag/flags/FlagEvalController.java
+  s_f485057211c477::t_df522d20d42a35 38-41,44,47-52,60-63
+  s_f485057211c477::t_ce6b275fe8d35e 16
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionEvent.java
+  s_f485057211c477::t_d471a2cb3bcbd1 1-110
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionRepository.java
+  s_f485057211c477::t_c66df2662c44d2 1-12
+backend/src/main/java/com/featureflag/flags/metrics/ConversionRepository.java
+  s_f485057211c477::t_ad7447917b53e3 1-14
+backend/src/main/java/com/featureflag/flags/FlagSeeder.java
+  s_f485057211c477::t_df95a7b58ed55a 191-196,200-213
+  s_f485057211c477::t_89cf34e280f27c 3,5,18-22,214
+  s_f485057211c477::t_06362e399f5c55 158,165-176
+  s_f485057211c477::t_26a4c1cb99e4ea 44-49,51-52,57-59,66-67
+  s_f485057211c477::t_5d4091e9cbe0b0 103-108,112-115,122-133
+backend/src/test/java/com/featureflag/flags/experiment/ThompsonSamplingAllocatorTest.java
+  s_f485057211c477::t_daf0f38a753893 1-71
+backend/src/main/java/com/featureflag/flags/audit/AuditAction.java
+  s_f485057211c477::t_1aa9a83951dd4c 8-10
+backend/src/main/java/com/featureflag/flags/dto/VariationUpdateRequest.java
+  s_f485057211c477::t_a99bd5de981509 3-10
+backend/src/main/java/com/featureflag/flags/metrics/dto/ConversionEventResponse.java
+  s_f485057211c477::t_fd3edb4867a98c 1-15
+backend/src/main/java/com/featureflag/flags/experiment/dto/BanditConfigRequest.java
+  s_f485057211c477::t_b305e150d46176 1-6
+backend/src/test/java/com/featureflag/flags/experiment/EpsilonGreedyAllocatorTest.java
+  s_f485057211c477::t_533feaf356209d 1-38,40-49,63,65-68,70-93
+  s_f485057211c477::t_c6c6a6f867b3f3 39,50-62,64,69
+backend/src/test/java/com/featureflag/flags/FlagEvaluationServiceTest.java
+  s_f485057211c477::t_568cdc48ec1b46 150-233
+  s_f485057211c477::t_78fc1e07a8ff40 10
+backend/src/main/java/com/featureflag/flags/dto/VariationCreateRequest.java
+  s_f485057211c477::t_cb0380118f8637 3-10
+backend/src/test/java/com/featureflag/flags/metrics/MetricsControllerIT.java
+  s_f485057211c477::t_46721452928879 1-130
+backend/src/main/java/com/featureflag/flags/Strategy.java
+  s_f485057211c477::t_4a4a8fcb18a064 118-142
+  s_f485057211c477::t_aa5d8255047a01 4,6,15-22,42-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "26f9fee4c039c5b168475580bb5e27e54fca21e4",
+  "prompts": {},
+  "sessions": {
+    "s_f485057211c477": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f73fd47-9fac-42f0-99c7-877f3ea754c1",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
