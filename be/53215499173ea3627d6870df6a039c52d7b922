@@ -1,0 +1,224 @@
+backend/src/test/java/com/featureflag/flags/FlagAdminControllerIT.java
+  s_f5798b8519e4c2::t_7594ebccf2fca7 24
+  s_f5798b8519e4c2::t_8f0df19452dfc7 273-340,348-355
+  s_f5798b8519e4c2::t_d84e6c8c736fb9 133-134,136,139-141,146,150-152,154-158,161-167,171-173,176,178-187,191-193,209-210,345-346,357-359
+  s_f5798b8519e4c2::t_1acc6f90d44082 1-14,17-22,25-26,29,31-59,62-72,76-94,112-115,117-132,360
+  s_f5798b8519e4c2::t_b956ed77c4205e 15-16,23,27,60-61,73-75,95-111,116,135,137-138,142-145,147-149,153,159-160,168-170,174-175,177,188-190,194-208,211-272,341-344,347,356
+  s_f5798b8519e4c2::t_4a5bca743d2dbe 28,30
+backend/src/main/java/com/featureflag/flags/Flag.java
+  s_f5798b8519e4c2::t_2969ea07ecb3f1 138-145
+  s_f5798b8519e4c2::t_cd3874ed85c8a5 1-37,41-137,146-149
+  s_f5798b8519e4c2::t_a7ad9185d94d43 38-40
+backend/src/main/resources/application.properties
+  s_d9d2ec95c76c73::t_83641a9aff2559 1-7
+backend/src/main/java/com/featureflag/shared/MongoConfig.java
+  s_d9d2ec95c76c73::t_b4efdecf9893ac 1-15
+backend/src/main/java/com/featureflag/flags/FlagLifecycle.java
+  s_f5798b8519e4c2::t_97e9c3d589eb2f 1-6
+backend/settings.gradle
+  s_d9d2ec95c76c73::t_c86f27306834c1 1
+backend/src/main/java/com/featureflag/flags/dto/BulkKeysRequest.java
+  s_f5798b8519e4c2::t_928dffa80ed0e7 1-6
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_f5798b8519e4c2::t_58d6d358def34f 295-296,305-306,320,323-324,382-384,388,464-468
+  s_f5798b8519e4c2::t_7aa4cf203474d9 25,27
+  s_f5798b8519e4c2::t_6665ba6caace17 479
+  s_f5798b8519e4c2::t_a43d7469854c3b 1-3,5,7-8,10-18,21-23,26,28-60,68-79,85,92-103,105-116,118-122,124-128,130-139,141-147,149-152,154-160,163-168,293-294,307-316,318-319,325-332,469-478,480-481,483-520,561-567,587-603
+  s_f5798b8519e4c2::t_459a6c78017796 6,9,19-20,24,61-67,80-84,86-91,104,123,129,148,153,161-162,292,297-304,317,321-322,333-381,385-387,389-463,482,521-560,568-586
+  s_f5798b8519e4c2::t_ce7306d92ff8ab 117
+  s_f5798b8519e4c2::t_81909341d0f054 140
+  s_f5798b8519e4c2::t_a8199338deaf65 4
+  s_f5798b8519e4c2::t_e143622a7937f4 169-291
+backend/src/main/java/com/featureflag/shared/FieldErrors.java
+  s_d9d2ec95c76c73::t_0f110706eb9eb1 1-41
+backend/src/main/resources/static/index.html
+  s_d9d2ec95c76c73::t_a51a41445b4bde 1-247
+backend/src/main/java/com/featureflag/flags/FlagAdminController.java
+  s_f5798b8519e4c2::t_3bbc28665acc5c 1-6,8-17,19,23-26,29-78,102-118,140
+  s_f5798b8519e4c2::t_dfe76afa007bf3 7,27-28
+  s_f5798b8519e4c2::t_07a212f111100d 18,20-22
+  s_f5798b8519e4c2::t_d3fce89f69fa67 119-139
+  s_f5798b8519e4c2::t_85534ab9fdfded 79-101
+backend/src/main/java/com/featureflag/flags/dto/BootstrapFlagResponse.java
+  s_f5798b8519e4c2::t_d0d8bbcd883614 1-22
+backend/build.gradle
+  s_d9d2ec95c76c73::t_8e3519b182fdbe 1-21,24-30,36-37
+  s_f5798b8519e4c2::t_0a24e12cb58a83 23
+  s_f5798b8519e4c2::t_9b2fe64eb36b95 22,31-35
+backend/src/main/java/com/featureflag/flags/FlagSeeder.java
+  s_f5798b8519e4c2::t_b132bb26562eee 1-13,15-50,52-63,70,82-89,91,93,96-101,103,105,108-113,116,118-124,138-139,142-143
+  s_f5798b8519e4c2::t_1d2143124e780d 14,51,64-69,71-81,90,92,94-95,102,104,106-107,114-115,117,125-137,140-141
+backend/src/test/java/com/featureflag/flags/FlagEvaluationServiceTest.java
+  s_f5798b8519e4c2::t_a43a9ec5662499 110,113-114
+  s_f5798b8519e4c2::t_62da391db2c4c1 1-20,22-30,32-40,44-48,51-53,57-63,67-69,74-78,80-82,85-89,91-95,97-106,121-141,143-171,174-175,185-186,196-197,208-209
+  s_f5798b8519e4c2::t_a41371c857a182 21,31,41-43,49-50,54-56,64-66,70-73,79,83-84,90,96,107-109,111-112,115-120,142,172-173,176-184,187-195,198-207
+backend/src/main/java/com/featureflag/flags/EnvironmentKey.java
+  s_f5798b8519e4c2::t_3292effddee2d6 1-7
+backend/src/main/java/com/featureflag/flags/dto/BulkRestoreResult.java
+  s_f5798b8519e4c2::t_233baa2859e403 1-11
+backend/src/main/java/com/featureflag/flags/FlagStreamService.java
+  s_f5798b8519e4c2::t_10b5e82d90bfc8 1-59
+backend/src/main/java/com/featureflag/shared/WebConfig.java
+  s_d9d2ec95c76c73::t_67229dc396a722 1-14
+backend/src/main/java/com/featureflag/flags/FlagCacheService.java
+  s_f5798b8519e4c2::t_f8dbe362adf655 1-47
+backend/src/main/java/com/featureflag/flags/FlagType.java
+  s_f5798b8519e4c2::t_67af0eab3aaf8f 1-6
+backend/src/main/java/com/featureflag/flags/audit/AuditAction.java
+  s_f5798b8519e4c2::t_377ff8f3fff86b 1-9
+backend/src/main/java/com/featureflag/flags/EnvironmentConfig.java
+  s_f5798b8519e4c2::t_bb0b664dd16845 13,18,21,40-41,44-45,48-50
+  s_f5798b8519e4c2::t_4b7050e62bf377 1-12,14-17,19-20,22-39,42-43,46-47,51-54
+backend/src/test/java/com/featureflag/flags/FlagSeederIT.java
+  s_f5798b8519e4c2::t_612756a5b66c04 4
+  s_f5798b8519e4c2::t_1219236f544f6e 44,46-47,53-58
+  s_f5798b8519e4c2::t_e8c56e7a6d52bc 62-70
+  s_f5798b8519e4c2::t_6b9de16d41304d 37-39
+  s_f5798b8519e4c2::t_b5aec287c93889 1-3,5-16,18-36,40-43,45,48-52,59-61,71-80
+  s_f5798b8519e4c2::t_c2649ded2d5ab1 17
+backend/src/main/java/com/featureflag/flags/Variation.java
+  s_f5798b8519e4c2::t_1dd6d45cb12312 1-43
+backend/src/main/java/com/featureflag/flags/UserContext.java
+  s_f5798b8519e4c2::t_f929ecd822a739 1-15
+backend/src/main/java/com/featureflag/flags/dto/VariationUpdateRequest.java
+  s_f5798b8519e4c2::t_a8aef668e3f2a0 1-4
+backend/src/test/java/com/featureflag/flags/FlagCacheServiceTest.java
+  s_f5798b8519e4c2::t_8ab9419feba997 1-100
+backend/src/main/java/com/featureflag/flags/dto/EvaluationRequest.java
+  s_f5798b8519e4c2::t_efb59fd860df85 1-16
+backend/src/main/java/com/featureflag/shared/ValidationException.java
+  s_d9d2ec95c76c73::t_ad6a470fb70664 1-12
+backend/src/main/java/com/featureflag/flags/dto/ActingRequest.java
+  s_f5798b8519e4c2::t_4c9cf35fdf48be 1-4
+backend/src/main/resources/static/favicon.svg
+  s_d9d2ec95c76c73::t_10ce91d62f53f9 1-10
+backend/src/main/java/com/featureflag/flags/dto/EnvironmentConfigRequest.java
+  s_f5798b8519e4c2::t_8ddc1796b3241a 5-6
+  s_f5798b8519e4c2::t_bb0e0e296b7c39 1-4,7
+backend/src/main/java/com/featureflag/flags/dto/VariationCreateRequest.java
+  s_f5798b8519e4c2::t_75cf0cf3415b55 1-4
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_f5798b8519e4c2::t_9dde14bda27a93 1-3,5,8-13
+  s_f5798b8519e4c2::t_baefd4c33d30f7 4,6-7
+backend/.env.example
+  s_d9d2ec95c76c73::t_fa82090ecbc126 1-2
+backend/src/main/java/com/featureflag/FeatureFlagApplication.java
+  s_d9d2ec95c76c73::t_54d765134b7c6f 1-12
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_f5798b8519e4c2::t_95f35ffcfadcc8 13-17,34-44,48-49,55-57
+  s_f5798b8519e4c2::t_e0363b55072482 1-12,18-33,45-47,50-54,58-89
+backend/src/main/java/com/featureflag/flags/Strategy.java
+  s_f5798b8519e4c2::t_a1f930a02c3a95 1-117
+backend/src/main/java/com/featureflag/flags/FlagStreamController.java
+  s_f5798b8519e4c2::t_dc52044ace4ab5 1-27
+backend/src/main/java/com/featureflag/flags/FlagEvalController.java
+  s_f5798b8519e4c2::t_8481fd51639532 76
+  s_f5798b8519e4c2::t_c4402010a975c8 56
+  s_f5798b8519e4c2::t_625fc709f6748f 9-10,14,23-27,42,49,54,57,65-71,73-74,77
+  s_f5798b8519e4c2::t_bd878fe2e420c3 44
+  s_f5798b8519e4c2::t_97d4d8fdd5e2da 1-8,11-13,16-22,28-41,43,45-48,50-53,55,58-64,72,75,78-79
+  s_f5798b8519e4c2::t_6ed21edea04a26 15
+backend/gradlew.bat
+  s_d9d2ec95c76c73::t_1e5f9beba86b09 1-82
+backend/src/main/java/com/featureflag/shared/GlobalExceptionHandler.java
+  s_f5798b8519e4c2::t_b2da63bcdbe8a2 39
+  s_f5798b8519e4c2::t_011d832118ab4f 10
+  s_d9d2ec95c76c73::t_6a3b93f2fa634b 1-9,11-26,29-34,42-71
+  s_f5798b8519e4c2::t_f3b677eeae6469 35-38,40-41
+  s_f5798b8519e4c2::t_97fc178bd748e0 27-28
+backend/src/main/java/com/featureflag/flags/dto/FlagResponse.java
+  s_f5798b8519e4c2::t_eab5e4e6ac14bc 15-16,20-21
+  s_f5798b8519e4c2::t_ec2fe51cba3f74 1-14,17-19,22-23
+backend/src/main/java/com/featureflag/flags/FlagIndexInitializer.java
+  s_f5798b8519e4c2::t_d128acd3df2839 1-2,4-26,28-29
+  s_f5798b8519e4c2::t_13ad30a0c31b60 27
+  s_f5798b8519e4c2::t_d26507233f083e 3
+backend/src/main/java/com/featureflag/flags/dto/BulkArchiveResult.java
+  s_f5798b8519e4c2::t_cd25429d2c48b2 1-14
+backend/src/main/java/com/featureflag/flags/dto/FlagCreateRequest.java
+  s_f5798b8519e4c2::t_e5f5615272faac 1-7,9
+  s_f5798b8519e4c2::t_1da0e47d9884a2 8
+backend/src/main/java/com/featureflag/shared/ApiException.java
+  s_d9d2ec95c76c73::t_6911437bf27b5e 1-35
+backend/src/main/java/com/featureflag/flags/audit/AuditRepository.java
+  s_f5798b8519e4c2::t_057e0b8e210918 1-10
+backend/src/test/resources/application-test.properties
+  s_f5798b8519e4c2::t_a6d4f551c7daf5 1-4
+backend/src/main/java/com/featureflag/flags/FlagRepository.java
+  s_f5798b8519e4c2::t_68cd294e5c6219 1-15
+backend/src/main/java/com/featureflag/flags/audit/AuditService.java
+  s_f5798b8519e4c2::t_997f703a26b64f 1-23
+backend/src/main/java/com/featureflag/flags/StrategyType.java
+  s_f5798b8519e4c2::t_b1b2bfb14ee476 1-7
+backend/src/test/java/com/featureflag/flags/FlagServiceTest.java
+  s_f5798b8519e4c2::t_8e581136110762 527
+  s_f5798b8519e4c2::t_138465adef99ed 34,36
+  s_f5798b8519e4c2::t_f01590a57fcdb2 298-301,304-316,319-332,334-345,348-355,357-360,364-368,370-371,374,376-380
+  s_f5798b8519e4c2::t_e2489c074c5d23 60
+  s_f5798b8519e4c2::t_bc93c4379cb786 537-557
+  s_f5798b8519e4c2::t_0d891791b4c76a 6
+  s_f5798b8519e4c2::t_292ad6545a31ba 7
+  s_f5798b8519e4c2::t_dd969dd17ccb45 177-297
+  s_f5798b8519e4c2::t_1ed028a5e737a8 13-14,16
+  s_f5798b8519e4c2::t_8d65c271091ebb 28-29,33,78-80,82,84,86,100,108-127,145-146,157-158,165,169-170,302-303,317-318,333,346-347,356,361-363,369,372-373,375,381-383,385-387,389-391,419-469,472-506,509-514,524,530
+  s_f5798b8519e4c2::t_6fa5f34d2f2cb3 11
+  s_f5798b8519e4c2::t_d96a64e1ed05a5 32
+  s_f5798b8519e4c2::t_897ff36908993c 1-5,8-10,12,15,17-27,30-31,35,37-59,61-77,81,83,85,87-99,101-107,128-144,147-156,159-164,166-168,171-176,384,388,392-418,470-471,507-508,515-523,525-526,528-529,531-536,558
+backend/src/test/java/com/featureflag/flags/FlagEvalControllerIT.java
+  s_f5798b8519e4c2::t_4c6a2293e96215 114-117,119,130-135,140-141
+  s_f5798b8519e4c2::t_402411a53312e2 75,77,79
+  s_f5798b8519e4c2::t_d966bf0dbe3052 1-19,21,23,25-54,57-63,76,78,80,85-94,97-103,106-107,136-139,142-145
+  s_f5798b8519e4c2::t_4b5c8b6871c002 20,24
+  s_f5798b8519e4c2::t_bd2f314a1bab57 22,55-56,64-74,81-84,95-96,104-105,108-113,118,120-129
+backend/gradlew
+  s_d9d2ec95c76c73::t_1e5f9beba86b09 1-248
+backend/src/main/java/com/featureflag/flags/dto/StrategyRequest.java
+  s_f5798b8519e4c2::t_799b5ae3979458 1-9
+backend/src/main/java/com/featureflag/flags/audit/AuditEvent.java
+  s_f5798b8519e4c2::t_24674b8b03f962 1-83
+backend/src/main/java/com/featureflag/flags/dto/VariationRequest.java
+  s_f5798b8519e4c2::t_c40d8c47d4ef0e 1-4
+backend/src/main/java/com/featureflag/shared/HealthController.java
+  s_d9d2ec95c76c73::t_87725a97fb57e7 1-42
+backend/gradle/wrapper/gradle-wrapper.properties
+  s_d9d2ec95c76c73::t_1e5f9beba86b09 1-9
+backend/src/main/java/com/featureflag/flags/dto/AuditEventResponse.java
+  s_f5798b8519e4c2::t_d1b0a3ce38b1d7 1-15
+backend/src/main/java/com/featureflag/flags/dto/FlagUpdateRequest.java
+  s_f5798b8519e4c2::t_cf28a62f52c27f 1-2,6
+  s_f5798b8519e4c2::t_cae5379f289df9 3-5
+backend/src/test/resources/application-seed-test.properties
+  s_f5798b8519e4c2::t_da696ba0c86ea7 1-4
+backend/src/main/java/com/featureflag/flags/EvaluationReason.java
+  s_f5798b8519e4c2::t_dcd6680ae86be0 1-4,6,8
+  s_f5798b8519e4c2::t_59dbd5b03d1979 5,7
+backend/src/test/java/com/featureflag/flags/FlagStreamControllerIT.java
+  s_f5798b8519e4c2::t_f4a261bd801166 102,104
+  s_f5798b8519e4c2::t_28ef2fe1512169 1-28,30-61,64-101,103,105-126
+  s_f5798b8519e4c2::t_f89929a84aa5e5 29
+  s_f5798b8519e4c2::t_9d14dd5e92a33f 62-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "be53215499173ea3627d6870df6a039c52d7b922",
+  "prompts": {},
+  "sessions": {
+    "s_d9d2ec95c76c73": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6d5fda31-1ca7-4a08-a83d-3be7235b42f9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    },
+    "s_f5798b8519e4c2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ccc7d507-e17c-49da-8d7b-440b4590e485",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
