@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Feature Flag Spring Boot Backend",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "com.featureflag.FeatureFlagApplication",
+            "projectName": "featureflag-backend",
+            "cwd": "${workspaceFolder}/backend",
+            "console": "integratedTerminal"
+        }
+    ]
+}

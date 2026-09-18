@@ -1,0 +1,14 @@
+node_modules/
+.bun-tmp/
+package-lock.json
+.mongodb/
+dist/
+build/
+.gradle/
+.env
+.env.local
+*.log
+.DS_Store
+
+CLAUDE.md
+.claude/
