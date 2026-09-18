@@ -1,0 +1,53 @@
+frontend/src/features/flags/MetricsTab.jsx
+  s_bd455e360efd70::t_14dac46546c160 217
+  s_bd455e360efd70::t_8b55fad02ecd7d 1-216,218-296
+frontend/src/features/flags/EvaluatePanel.jsx
+  s_bd455e360efd70::t_f6f557bcfb8372 1-94
+frontend/src/features/flags/FlagDetailPage.jsx
+  s_bd455e360efd70::t_8a89f960336837 49-51
+  s_bd455e360efd70::t_d9beb1b1271e27 428,484,486-496,537,549,561,575,580,585
+  s_bd455e360efd70::t_7ccc0d3e4c9f32 426-427
+  s_bd455e360efd70::t_a9139bf1dc367a 184
+  s_bd455e360efd70::t_e8d79add7216e9 328-346,354,356-357,359,373,407
+  s_bd455e360efd70::t_0fc2059d4f0f0a 16-36,168,179
+  s_bd455e360efd70::t_b3cff4ad34d6fd 13-15
+  s_bd455e360efd70::t_21fb2d68c14c5e 37-39,46-48
+  s_bd455e360efd70::t_05ed37d7780b01 52-54,165-167
+  s_bd455e360efd70::t_27fba66fa44a1e 169-171,176-178
+  s_bd455e360efd70::t_99aea1c03142fd 180-183
+  s_bd455e360efd70::t_ec22a074745a02 185-187,325-327
+  s_bd455e360efd70::t_0d444b7e189f1d 347-349,351-353
+  s_bd455e360efd70::t_ff913e42184645 355
+  s_bd455e360efd70::t_a2ea7a6e0142cb 358
+  s_bd455e360efd70::t_9d194ebf5a5605 360-362,370-372
+  s_bd455e360efd70::t_1188174c50f690 374-376,404-406
+  s_bd455e360efd70::t_938135b1c668a4 408-410,423-425
+  s_bd455e360efd70::t_51f1a719ef6916 429-431,481-483
+  s_bd455e360efd70::t_d7abfbaebb2a22 485
+  s_bd455e360efd70::t_da137a68e7c41c 497-499,534-536
+  s_bd455e360efd70::t_6805266bdf4dc3 538-540,546-548
+  s_bd455e360efd70::t_c384a6b58fccdd 550-552,558-560
+  s_bd455e360efd70::t_fb5b504dc26dad 562-564,572-574
+  s_bd455e360efd70::t_c2e795f0794e92 576-579
+  s_bd455e360efd70::t_1ec404479816dc 581-584
+  s_bd455e360efd70::t_5a7d7ab72850f5 586-588
+  s_bd455e360efd70::t_d9f3aab5ad6fb9 1-12,40-45,55-164,172-175,188-324,350,363-369,377-403,411-422,432-480,500-533,541-545,553-557,565-571,589-594
+frontend/src/App.jsx
+  s_bd455e360efd70::t_c875ba1071e71b 1-5,7-22,24-29,31,33-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "eede763cc3067d152385275f9afe2a4a0ace503d",
+  "prompts": {},
+  "sessions": {
+    "s_bd455e360efd70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2671a4d6-c071-4185-a58e-55e841383cd7",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
