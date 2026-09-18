@@ -1,0 +1,38 @@
+.prettierignore
+  s_d9d2ec95c76c73::t_88f9cd4100bda3 1-7
+.prettierrc
+  s_d9d2ec95c76c73::t_7a378104339d34 1-20
+.gitattributes
+  s_d9d2ec95c76c73::t_32a9994826a3b3 1-5
+.gitignore
+  s_d9d2ec95c76c73::t_0252f8ecd49985 1-14
+package.json
+  s_d9d2ec95c76c73::t_7f695016e0bcad 1-12,14-18
+  s_d9d2ec95c76c73::t_66f5aaa026febf 13
+hackerrank.yml
+  s_d9d2ec95c76c73::t_8832cc3b925a9e 1-13
+.editorconfig
+  s_d9d2ec95c76c73::t_3a959df7f07959 1-13
+setup.sh
+  s_d9d2ec95c76c73::t_d1ade663c32c89 1-72
+.vscode/launch.json
+  s_d9d2ec95c76c73::t_321ff37d30eedc 1-14
+bun.lock
+  s_d9d2ec95c76c73::t_8d3069684e3273 1-164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "286591f61fa52451c4544f1175b977cf74916e2a",
+  "prompts": {},
+  "sessions": {
+    "s_d9d2ec95c76c73": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6d5fda31-1ca7-4a08-a83d-3be7235b42f9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
