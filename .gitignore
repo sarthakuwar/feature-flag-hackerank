@@ -12,3 +12,4 @@ build/
 
 CLAUDE.md
 .claude/
+.gstack/
