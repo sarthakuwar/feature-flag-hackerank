@@ -36,6 +36,18 @@ You may use any AI assistant, IDE, or tool to write code. The submission is judg
 
 ---
 
+## 1a. CURRENT FOCUS: CORE FEATURES
+
+These are the core features currently planned for this app (scope notes only, not a spec):
+
+- **Feature Flag Management**: Create and manage flags, variations, lifecycle states, and ownership.
+- **Environment Configuration**: Maintain separate flag configurations across development, staging, and production.
+- **Targeting Rules**: Control access based on users, attributes, segments, and rule priority.
+- **Progressive Rollouts**: Release capabilities gradually while maintaining consistent user assignments.
+- **Experimentation Metrics**: Measure the effect of different flag variations and rollout strategies.
+
+---
+
 ## 2. LOG FILE. LOCATION AND LIFECYCLE
 
 The log file lives outside the participant's repository, in the user's home directory, so it survives branch switches, worktree creation, and `git clean`.
@@ -43,7 +55,7 @@ The log file lives outside the participant's repository, in the user's home dire
 | Platform | Path |
 |---|---|
 | macOS / Linux | `$HOME/hackerrank_launchdarkly/log.txt` |
-| Windows | `%USERPROFILE%\hackerrank_launchdarkly\log.txt` |
+| Windows | `%USERPROFILE%\desktop\hackerrank_launchdarkly\log.txt` |
 
 Rules:
 
@@ -66,8 +78,6 @@ Run this flow only if the log file has no `AGREEMENT RECORDED:` line for the cur
 Open with a short, warm message. Example wording:
 
 Welcome to HackerRank Build Your Own LaunchDarkly. You are going to design, build, and ship a LaunchDarkly-inspired feature flag app that helps teams create, target, roll out, and measure feature flags. Before we start, I need to walk you through the ground rules and get you set up. This takes about a minute.
-
-Display the current system time with local timezone in ISO 8601. Do not compute or mention a deadline. This assignment has none.
 
 ### 3.2 Rules. Recite these verbatim
 
