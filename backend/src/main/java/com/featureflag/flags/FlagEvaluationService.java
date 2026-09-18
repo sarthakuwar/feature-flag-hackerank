@@ -39,6 +39,12 @@ public class FlagEvaluationService {
 					return EvaluationResult.of(flag.getKey(), strategy.getServedVariationKey(),
 							valueOf(flag, strategy.getServedVariationKey()), EvaluationReason.ROLLOUT_ENABLED);
 				}
+			} else if (strategy.getType() == StrategyType.EXPERIMENT_SPLIT) {
+				int bucket = bucketFor(flag.getKey(), userContext);
+				String variationKey = resolveExperimentVariation(flag, strategy, bucket);
+
+				return EvaluationResult.of(flag.getKey(), variationKey, valueOf(flag, variationKey),
+						EvaluationReason.EXPERIMENT_ASSIGNED);
 			} else if (strategy.matches(userContext)) {
 				return EvaluationResult.strategyMatch(flag.getKey(), strategy.getServedVariationKey(),
 						valueOf(flag, strategy.getServedVariationKey()), strategy.getId());
@@ -71,6 +77,28 @@ public class FlagEvaluationService {
 		} catch (NoSuchAlgorithmException exception) {
 			throw new IllegalStateException("MD5 is not available on this JVM.", exception);
 		}
+	}
+
+	/**
+	 * Walks {@code flag.getVariations()} in list order (never the weights map, whose iteration
+	 * order isn't guaranteed stable across (de)serialization) accumulating each variation's weight,
+	 * and returns the first one whose cumulative share exceeds the bucket. Weights are validated to
+	 * sum to 100 at write time, so every bucket 0-99 resolves; the last variation is returned as a
+	 * defensive fallback only if that invariant were ever violated.
+	 */
+	private String resolveExperimentVariation(Flag flag, Strategy strategy, int bucket) {
+		List<Variation> variations = flag.getVariations();
+		int cumulative = 0;
+
+		for (Variation variation : variations) {
+			cumulative += strategy.getVariationWeights().getOrDefault(variation.getKey(), 0);
+
+			if (bucket < cumulative) {
+				return variation.getKey();
+			}
+		}
+
+		return variations.isEmpty() ? null : variations.get(variations.size() - 1).getKey();
 	}
 
 	private String valueOf(Flag flag, String variationKey) {

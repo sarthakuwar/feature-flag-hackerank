@@ -1,6 +1,7 @@
 package com.featureflag.flags;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -14,6 +15,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.featureflag.flags.audit.AuditAction;
 import com.featureflag.flags.audit.AuditService;
 import com.featureflag.flags.dto.BulkArchiveResult;
@@ -168,7 +171,12 @@ public class FlagService {
 
 	/**
 	 * Multivariate flags only - boolean flags are fixed at exactly two variations (off/on) for
-	 * their lifetime, enforced at create() and here.
+	 * their lifetime, enforced at create() and here. If the flag already tracks weights and the
+	 * caller doesn't specify one for the new variation, every variation (existing and new) is reset
+	 * to an even split - the same "no weight given = even split" default {@link #assignWeights}
+	 * applies at create time. Supplying an explicit weight opts back into strict validation: the
+	 * existing variations' weights are left untouched and the whole-flag total must already sum to
+	 * 100, so the caller rebalances the others in the same request that adds a custom-weighted one.
 	 */
 	public Flag addVariation(String key, VariationCreateRequest request) {
 		Flag flag = getOrThrow(key);
@@ -189,9 +197,28 @@ public class FlagService {
 			errors.add("key", "Variation keys must be unique within a flag.");
 		}
 
+		if (request.weight() != null && (request.weight() < 0 || request.weight() > 100)) {
+			errors.add("weight", "Weight must be between 0 and 100.");
+		}
+
+		validatePayload(request.payloadType(), request.payloadValue(), "payloadValue", errors);
+
+		Variation newVariation = new Variation(request.key(), request.name(), request.value(), request.weight(),
+				request.payloadType(), request.payloadValue());
+		List<Variation> candidate = new ArrayList<>(flag.getVariations());
+		candidate.add(newVariation);
+
+		boolean existingAreWeighted = flag.getVariations().stream().anyMatch(variation -> variation.getWeight() != null);
+
+		if (request.weight() == null && existingAreWeighted) {
+			evenSplit(candidate);
+		} else {
+			validateWeightInvariant(candidate, errors);
+		}
+
 		errors.throwIfAny();
 
-		flag.getVariations().add(new Variation(request.key(), request.name(), request.value()));
+		flag.setVariations(candidate);
 
 		Flag saved = flagRepository.save(flag);
 		flagCacheService.put(saved);
@@ -201,7 +228,11 @@ public class FlagService {
 		return saved;
 	}
 
-	/** The variation key is immutable once created (strategies reference it); only name/value change. */
+	/**
+	 * The variation key is immutable once created (strategies reference it); name/value/weight/
+	 * payload can change. A null weight in the request keeps the variation's current weight rather
+	 * than clearing it - weight is a whole-flag invariant, not optional per edit.
+	 */
 	public Flag updateVariation(String key, String variationKey, VariationUpdateRequest request) {
 		Flag flag = getOrThrow(key);
 		requireEditable(flag);
@@ -214,15 +245,33 @@ public class FlagService {
 			errors.add("value", "Variation value is required.");
 		}
 
+		if (request.weight() != null && (request.weight() < 0 || request.weight() > 100)) {
+			errors.add("weight", "Weight must be between 0 and 100.");
+		}
+
+		validatePayload(request.payloadType(), request.payloadValue(), "payloadValue", errors);
+
 		Variation variation = flag.getVariations().stream().filter(candidate -> candidate.getKey().equals(variationKey))
 				.findFirst()
 				.orElseThrow(() -> new ApiException(404, "VARIATION_NOT_FOUND",
 						"Flag '" + key + "' has no variation '" + variationKey + "'."));
 
+		Integer newWeight = request.weight() != null ? request.weight() : variation.getWeight();
+		List<Variation> candidate = flag.getVariations().stream()
+				.map(existing -> existing.getKey().equals(variationKey)
+						? new Variation(existing.getKey(), existing.getName(), existing.getValue(), newWeight,
+								existing.getPayloadType(), existing.getPayloadValue())
+						: existing)
+				.toList();
+		validateWeightInvariant(candidate, errors);
+
 		errors.throwIfAny();
 
 		variation.setName(request.name());
 		variation.setValue(request.value());
+		variation.setWeight(newWeight);
+		variation.setPayloadType(request.payloadType());
+		variation.setPayloadValue(request.payloadValue());
 
 		Flag saved = flagRepository.save(flag);
 		flagCacheService.put(saved);
@@ -266,12 +315,62 @@ public class FlagService {
 		errors.throwIfAny();
 
 		flag.getVariations().removeIf(variation -> variation.getKey().equals(variationKey));
+		redistributeWeightsAfterRemoval(flag.getVariations());
 
 		Flag saved = flagRepository.save(flag);
 		flagCacheService.put(saved);
 		auditService.record(saved.getKey(), AuditAction.UPDATE, changedBy, "Removed variation '" + variationKey + "'.");
 
 		return saved;
+	}
+
+	/**
+	 * Removing a variation frees up its weight share. Scale the remaining variations'
+	 * weights up proportionally so they still sum to 100, rather than leaving a gap or
+	 * forcing the caller to manually rebalance every remaining variation in the same call.
+	 * Falls back to an even split if the remaining variations were all weighted at 0.
+	 */
+	private void redistributeWeightsAfterRemoval(List<Variation> remaining) {
+		if (remaining.isEmpty()) {
+			return;
+		}
+
+		boolean noneWeighted = remaining.stream().allMatch(variation -> variation.getWeight() == null);
+
+		if (noneWeighted) {
+			return;
+		}
+
+		int sum = remaining.stream().mapToInt(variation -> variation.getWeight() == null ? 0 : variation.getWeight()).sum();
+
+		if (sum == 100) {
+			return;
+		}
+
+		if (sum == 0) {
+			evenSplit(remaining);
+
+			return;
+		}
+
+		int running = 0;
+		int largestIndex = 0;
+		int largestOriginalWeight = -1;
+
+		for (int index = 0; index < remaining.size(); index++) {
+			int original = remaining.get(index).getWeight() == null ? 0 : remaining.get(index).getWeight();
+			int scaled = (int) Math.round(original * 100.0 / sum);
+			remaining.get(index).setWeight(scaled);
+			running += scaled;
+
+			if (original > largestOriginalWeight) {
+				largestOriginalWeight = original;
+				largestIndex = index;
+			}
+		}
+
+		Variation largest = remaining.get(largestIndex);
+		largest.setWeight(largest.getWeight() + (100 - running));
 	}
 
 	private List<String> environmentsReferencing(Flag flag, String variationKey) {
@@ -514,10 +613,124 @@ public class FlagService {
 				errors.add(field + ".key", "Variation keys must be unique within a flag.");
 			}
 
-			variations.add(new Variation(variationRequest.key(), variationRequest.name(), variationRequest.value()));
+			if (variationRequest.weight() != null && (variationRequest.weight() < 0 || variationRequest.weight() > 100)) {
+				errors.add(field + ".weight", "Weight must be between 0 and 100.");
+			}
+
+			validatePayload(variationRequest.payloadType(), variationRequest.payloadValue(), field + ".payloadValue", errors);
+
+			variations.add(new Variation(variationRequest.key(), variationRequest.name(), variationRequest.value(),
+					variationRequest.weight(), variationRequest.payloadType(), variationRequest.payloadValue()));
 		}
 
+		assignWeights(variations, errors);
+
 		return variations;
+	}
+
+	/**
+	 * "Custom percentage" is all-or-nothing per save: either every variation specifies a weight and
+	 * they sum to 100, or none do and an even split is assigned automatically - two variants
+	 * default to 50/50, three to 34/33/33, and so on, remainder going to the first variations.
+	 */
+	private void assignWeights(List<Variation> variations, FieldErrors errors) {
+		long specified = variations.stream().filter(variation -> variation.getWeight() != null).count();
+
+		if (specified == 0) {
+			evenSplit(variations);
+
+			return;
+		}
+
+		if (specified != variations.size()) {
+			errors.add("variations", "Specify a weight for every variation, or none, to use an even split.");
+
+			return;
+		}
+
+		int sum = variations.stream().mapToInt(Variation::getWeight).sum();
+
+		if (sum != 100) {
+			errors.add("variations", "Variation weights must sum to 100 (found " + sum + ").");
+		}
+	}
+
+	/** Divides 100 as evenly as possible across every variation, remainder going to the first ones. */
+	private void evenSplit(List<Variation> variations) {
+		int even = 100 / variations.size();
+		int remainder = 100 - (even * variations.size());
+
+		for (int index = 0; index < variations.size(); index++) {
+			variations.get(index).setWeight(even + (index < remainder ? 1 : 0));
+		}
+	}
+
+	/**
+	 * Used by addVariation/updateVariation. A flag created through {@link #create} always has a
+	 * weight on every variation (assignWeights guarantees it), so weights are only ever partially
+	 * missing here for flags predating that invariant; in that legacy case, weight simply isn't
+	 * being tracked yet and there's nothing to validate. Once a flag has at least one weighted
+	 * variation, every variation must have one and they must sum to 100.
+	 */
+	private void validateWeightInvariant(List<Variation> variations, FieldErrors errors) {
+		boolean noneWeighted = variations.stream().allMatch(variation -> variation.getWeight() == null);
+
+		if (noneWeighted) {
+			return;
+		}
+
+		boolean anyMissing = variations.stream().anyMatch(variation -> variation.getWeight() == null);
+
+		if (anyMissing) {
+			errors.add("weight", "Every variation must specify a weight.");
+
+			return;
+		}
+
+		int sum = variations.stream().mapToInt(Variation::getWeight).sum();
+
+		if (sum != 100) {
+			errors.add("weight", "Variation weights must sum to 100 (found " + sum + ").");
+		}
+	}
+
+	private void validatePayload(PayloadType payloadType, String payloadValue, String field, FieldErrors errors) {
+		if (payloadType == null) {
+			return;
+		}
+
+		if (payloadValue == null || payloadValue.isBlank()) {
+			errors.add(field, "Payload value is required when a payload type is set.");
+
+			return;
+		}
+
+		switch (payloadType) {
+			case NUMBER -> {
+				try {
+					Double.parseDouble(payloadValue);
+				} catch (NumberFormatException exception) {
+					errors.add(field, "Payload value must be a valid number.");
+				}
+			}
+			case JSON -> {
+				try {
+					new ObjectMapper().readTree(payloadValue);
+				} catch (JsonProcessingException exception) {
+					errors.add(field, "Payload value must be valid JSON.");
+				}
+			}
+			case CSV -> {
+				boolean hasNonBlankToken = Arrays.stream(payloadValue.split(",")).anyMatch(token -> !token.isBlank());
+
+				if (!hasNonBlankToken) {
+					errors.add(field, "Payload value must contain at least one comma-separated value.");
+				}
+			}
+			case STRING -> {
+				// Any non-blank value is valid; already checked above.
+			}
+		}
 	}
 
 	private List<Strategy> validateStrategies(List<StrategyRequest> requested, Set<String> variationKeys, FieldErrors errors) {
@@ -539,10 +752,14 @@ public class FlagService {
 			} else if (strategyRequest.type() == StrategyType.PERCENTAGE_ROLLOUT
 					&& (strategyRequest.percentage() < 0 || strategyRequest.percentage() > 100)) {
 				errors.add(field + ".percentage", "Percentage must be between 0 and 100.");
+			} else if (strategyRequest.type() == StrategyType.EXPERIMENT_SPLIT) {
+				validateExperimentSplit(strategyRequest, variationKeys, field, errors);
 			}
 
-			validateVariationReference(strategyRequest.servedVariationKey(), variationKeys, field + ".servedVariationKey",
-					errors);
+			if (strategyRequest.type() != StrategyType.EXPERIMENT_SPLIT) {
+				validateVariationReference(strategyRequest.servedVariationKey(), variationKeys, field + ".servedVariationKey",
+						errors);
+			}
 
 			Strategy strategy = new Strategy();
 			strategy.setId(strategyRequest.id() == null || strategyRequest.id().isBlank() ? UUID.randomUUID().toString()
@@ -554,10 +771,49 @@ public class FlagService {
 			strategy.setAttributeValue(strategyRequest.attributeValue());
 			strategy.setPercentage(strategyRequest.percentage());
 			strategy.setServedVariationKey(strategyRequest.servedVariationKey());
+			strategy.setVariationWeights(
+					strategyRequest.variationWeights() == null ? new LinkedHashMap<>() : new LinkedHashMap<>(strategyRequest.variationWeights()));
+			strategy.setBanditAlgorithm(strategyRequest.banditAlgorithm() == null ? BanditAlgorithm.NONE : strategyRequest.banditAlgorithm());
+			strategy.setEpsilon(strategyRequest.epsilon());
 			strategies.add(strategy);
 		}
 
 		return strategies;
+	}
+
+	/**
+	 * servedVariationKey is meaningless for EXPERIMENT_SPLIT (variationWeights decides the outcome
+	 * for every bucket), so it's validated separately here instead of via validateVariationReference.
+	 */
+	private void validateExperimentSplit(StrategyRequest strategyRequest, Set<String> variationKeys, String field,
+			FieldErrors errors) {
+		Map<String, Integer> weights = strategyRequest.variationWeights();
+
+		if (weights == null || weights.isEmpty()) {
+			errors.add(field + ".variationWeights", "Variation weights are required for an EXPERIMENT_SPLIT strategy.");
+		} else {
+			if (!weights.keySet().equals(variationKeys)) {
+				errors.add(field + ".variationWeights", "Weights must cover exactly this flag's variations.");
+			}
+
+			int sum = weights.values().stream().mapToInt(weight -> weight == null ? 0 : weight).sum();
+
+			if (sum != 100) {
+				errors.add(field + ".variationWeights", "Variation weights must sum to 100 (found " + sum + ").");
+			}
+		}
+
+		BanditAlgorithm algorithm = strategyRequest.banditAlgorithm() == null ? BanditAlgorithm.NONE : strategyRequest.banditAlgorithm();
+
+		if (algorithm == BanditAlgorithm.EPSILON_GREEDY) {
+			Double epsilon = strategyRequest.epsilon();
+
+			if (epsilon == null || epsilon <= 0 || epsilon > 1) {
+				errors.add(field + ".epsilon", "Epsilon is required and must be between 0 (exclusive) and 1 (inclusive) for EPSILON_GREEDY.");
+			}
+		} else if (strategyRequest.epsilon() != null) {
+			errors.add(field + ".epsilon", "Epsilon only applies to the EPSILON_GREEDY algorithm.");
+		}
 	}
 
 	private void validateVariationReference(String variationKey, Set<String> variationKeys, String field, FieldErrors errors) {

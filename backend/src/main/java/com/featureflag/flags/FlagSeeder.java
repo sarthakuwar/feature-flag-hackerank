@@ -1,6 +1,8 @@
 package com.featureflag.flags;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -13,6 +15,11 @@ import com.featureflag.flags.dto.EnvironmentConfigRequest;
 import com.featureflag.flags.dto.FlagCreateRequest;
 import com.featureflag.flags.dto.StrategyRequest;
 import com.featureflag.flags.dto.VariationRequest;
+import com.featureflag.flags.experiment.ExperimentService;
+import com.featureflag.flags.metrics.ConversionEvent;
+import com.featureflag.flags.metrics.ConversionRepository;
+import com.featureflag.flags.metrics.ImpressionEvent;
+import com.featureflag.flags.metrics.ImpressionRepository;
 
 /**
  * backend/build.gradle can't carry a Gradle "seed" task (it's a readonly_paths entry and has no
@@ -34,18 +41,30 @@ public class FlagSeeder implements ApplicationRunner {
 
 	private final FlagCacheService flagCacheService;
 
+	private final ImpressionRepository impressionRepository;
+
+	private final ConversionRepository conversionRepository;
+
+	private final ExperimentService experimentService;
+
 	public FlagSeeder(FlagRepository flagRepository, AuditRepository auditRepository, FlagService flagService,
-			FlagCacheService flagCacheService) {
+			FlagCacheService flagCacheService, ImpressionRepository impressionRepository,
+			ConversionRepository conversionRepository, ExperimentService experimentService) {
 		this.flagRepository = flagRepository;
 		this.auditRepository = auditRepository;
 		this.flagService = flagService;
 		this.flagCacheService = flagCacheService;
+		this.impressionRepository = impressionRepository;
+		this.conversionRepository = conversionRepository;
+		this.experimentService = experimentService;
 	}
 
 	@Override
 	public void run(ApplicationArguments args) {
 		flagRepository.deleteAll();
 		auditRepository.deleteAll();
+		impressionRepository.deleteAll();
+		conversionRepository.deleteAll();
 
 		seedNewCheckoutFlow();
 		seedCheckoutAnalyticsDashboard();
@@ -81,18 +100,37 @@ public class FlagSeeder implements ApplicationRunner {
 		enable("checkout-analytics-dashboard", EnvironmentKey.STAGING, "off", List.of(rollout(100, "on")));
 	}
 
+	/**
+	 * The flagship experimentation demo: weighted variations, a JSON payload on the new-hero
+	 * variation, and a live epsilon-greedy bandit in PRODUCTION seeded with uneven conversion data
+	 * so a single reallocateNow() call visibly shifts weight toward the better-performing variation
+	 * (new-hero) the first time the app starts.
+	 */
 	private void seedPricingPageRedesign() {
 		flagService.create(new FlagCreateRequest("pricing-page-redesign", "Pricing Page Redesign",
 				"New hero layout and copy for the pricing page.", FlagType.MULTIVARIATE, "Diego Alvarez",
-				List.of(new VariationRequest("control", "Control", "control"),
-						new VariationRequest("new-hero", "New hero", "new-hero"),
-						new VariationRequest("minimal", "Minimal", "minimal")),
+				List.of(new VariationRequest("control", "Control", "control", 34, null, null),
+						new VariationRequest("new-hero", "New hero", "new-hero", 33, PayloadType.JSON,
+								"{\"heroImage\":\"redesign-v2.png\"}"),
+						new VariationRequest("minimal", "Minimal", "minimal", 33, null, null)),
 				List.of(), "seed"));
 
 		StrategyRequest usRule = attribute("country", "US", "new-hero");
 
 		enable("pricing-page-redesign", EnvironmentKey.STAGING, "control", List.of(usRule, rollout(50, "new-hero")));
 		enable("pricing-page-redesign", EnvironmentKey.DEVELOPMENT, "control", List.of(usRule, rollout(100, "new-hero")));
+
+		Map<String, Integer> initialWeights = new LinkedHashMap<>();
+		initialWeights.put("control", 34);
+		initialWeights.put("new-hero", 33);
+		initialWeights.put("minimal", 33);
+		enable("pricing-page-redesign", EnvironmentKey.PRODUCTION, "control",
+				List.of(experimentSplit(initialWeights, BanditAlgorithm.EPSILON_GREEDY, 0.2)));
+
+		seedEvents("pricing-page-redesign", EnvironmentKey.PRODUCTION, "control", 120, 9, "purchase");
+		seedEvents("pricing-page-redesign", EnvironmentKey.PRODUCTION, "new-hero", 130, 18, "purchase");
+		seedEvents("pricing-page-redesign", EnvironmentKey.PRODUCTION, "minimal", 90, 6, "purchase");
+		experimentService.reallocateNow("pricing-page-redesign", EnvironmentKey.PRODUCTION, "seed");
 	}
 
 	private void seedBetaDashboardAccess() {
@@ -117,12 +155,25 @@ public class FlagSeeder implements ApplicationRunner {
 		enable("dark-mode-default", EnvironmentKey.DEVELOPMENT, "off", List.of(rollout(100, "on")));
 	}
 
+	/** Demonstrates the second bandit algorithm (Thompson sampling) with its own seeded data set. */
 	private void seedExperimentalAiSummaries() {
 		flagService.create(new FlagCreateRequest("experimental-ai-summaries", "Experimental AI Summaries",
 				"AI-generated summaries on long-form content pages.", FlagType.MULTIVARIATE, "Priya Sharma",
 				List.of(new VariationRequest("off", "Off", "off"), new VariationRequest("concise", "Concise", "concise"),
 						new VariationRequest("detailed", "Detailed", "detailed")),
 				List.of(), "seed"));
+
+		Map<String, Integer> initialWeights = new LinkedHashMap<>();
+		initialWeights.put("off", 34);
+		initialWeights.put("concise", 33);
+		initialWeights.put("detailed", 33);
+		enable("experimental-ai-summaries", EnvironmentKey.STAGING, "off",
+				List.of(experimentSplit(initialWeights, BanditAlgorithm.THOMPSON_SAMPLING, null)));
+
+		seedEvents("experimental-ai-summaries", EnvironmentKey.STAGING, "off", 40, 2, "read-to-end");
+		seedEvents("experimental-ai-summaries", EnvironmentKey.STAGING, "concise", 60, 10, "read-to-end");
+		seedEvents("experimental-ai-summaries", EnvironmentKey.STAGING, "detailed", 50, 9, "read-to-end");
+		experimentService.reallocateNow("experimental-ai-summaries", EnvironmentKey.STAGING, "seed");
 	}
 
 	private StrategyRequest userId(List<String> userIds, String servedVariationKey) {
@@ -137,7 +188,28 @@ public class FlagSeeder implements ApplicationRunner {
 		return new StrategyRequest(null, StrategyType.PERCENTAGE_ROLLOUT, List.of(), null, null, percentage, servedVariationKey);
 	}
 
+	private StrategyRequest experimentSplit(Map<String, Integer> variationWeights, BanditAlgorithm banditAlgorithm,
+			Double epsilon) {
+		return new StrategyRequest(null, StrategyType.EXPERIMENT_SPLIT, List.of(), null, null, 0, null, variationWeights,
+				banditAlgorithm, epsilon);
+	}
+
 	private void enable(String key, EnvironmentKey environment, String offVariationKey, List<StrategyRequest> strategies) {
 		flagService.updateEnvironment(key, environment, new EnvironmentConfigRequest(true, offVariationKey, strategies, "seed"));
+	}
+
+	/** Inserts raw impression/conversion documents directly, bypassing the eval/conversion APIs, so
+	 * the metrics dashboard has realistic, uneven data to demonstrate reallocation from first boot. */
+	private void seedEvents(String flagKey, EnvironmentKey environment, String variationKey, int impressions, int conversions,
+			String eventType) {
+		for (int i = 0; i < impressions; i++) {
+			impressionRepository.save(new ImpressionEvent(flagKey, environment, variationKey, "seed-user-" + variationKey + "-" + i,
+					0, EvaluationReason.EXPERIMENT_ASSIGNED));
+		}
+
+		for (int i = 0; i < conversions; i++) {
+			conversionRepository.save(new ConversionEvent(flagKey, environment, variationKey, "seed-user-" + variationKey + "-" + i,
+					eventType, null));
+		}
 	}
 }

@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -144,6 +145,90 @@ class FlagEvaluationServiceTest {
 		EvaluationResult result = evaluationService.evaluate(flag, EnvironmentKey.PRODUCTION, null);
 
 		assertThat(result.variationKey()).isEqualTo("on");
+	}
+
+	@Test
+	void experimentSplitDistributesUsersRoughlyAccordingToConfiguredWeights() {
+		Map<String, Integer> weights = new LinkedHashMap<>();
+		weights.put("off", 20);
+		weights.put("on", 80);
+		Flag flag = booleanFlag(config(true, "off", List.of(experimentSplit(weights))));
+
+		Map<String, Integer> counts = new LinkedHashMap<>();
+		counts.put("off", 0);
+		counts.put("on", 0);
+		int sampleSize = 10_000;
+
+		for (int i = 0; i < sampleSize; i++) {
+			EvaluationResult result = evaluationService.evaluate(flag, EnvironmentKey.PRODUCTION,
+					new UserContext("user-" + i, Map.of()));
+			assertThat(result.reason()).isEqualTo(EvaluationReason.EXPERIMENT_ASSIGNED);
+			counts.merge(result.variationKey(), 1, Integer::sum);
+		}
+
+		double onShare = counts.get("on") / (double) sampleSize;
+		assertThat(onShare).isBetween(0.75, 0.85);
+	}
+
+	@Test
+	void experimentSplitIsStickyForTheSameUserAcrossRepeatedEvaluations() {
+		Map<String, Integer> weights = new LinkedHashMap<>();
+		weights.put("off", 50);
+		weights.put("on", 50);
+		Flag flag = booleanFlag(config(true, "off", List.of(experimentSplit(weights))));
+		UserContext user = new UserContext("stable-user", Map.of());
+
+		String first = evaluationService.evaluate(flag, EnvironmentKey.PRODUCTION, user).variationKey();
+
+		for (int i = 0; i < 20; i++) {
+			String repeated = evaluationService.evaluate(flag, EnvironmentKey.PRODUCTION, user).variationKey();
+			assertThat(repeated).isEqualTo(first);
+		}
+	}
+
+	@Test
+	void experimentSplitOnlyReassignsUsersWhoseBucketFallsInTheChangedRange() {
+		Map<String, Integer> initialWeights = new LinkedHashMap<>();
+		initialWeights.put("off", 50);
+		initialWeights.put("on", 50);
+		Flag flag = booleanFlag(config(true, "off", List.of(experimentSplit(initialWeights))));
+
+		Map<String, String> before = new LinkedHashMap<>();
+		for (int i = 0; i < 200; i++) {
+			UserContext user = new UserContext("user-" + i, Map.of());
+			before.put(user.userId(), evaluationService.evaluate(flag, EnvironmentKey.PRODUCTION, user).variationKey());
+		}
+
+		Map<String, Integer> raisedWeights = new LinkedHashMap<>();
+		raisedWeights.put("off", 30);
+		raisedWeights.put("on", 70);
+		Flag raised = booleanFlag(config(true, "off", List.of(experimentSplit(raisedWeights))));
+
+		for (int i = 0; i < 200; i++) {
+			UserContext user = new UserContext("user-" + i, Map.of());
+			String previous = before.get(user.userId());
+			String current = evaluationService.evaluate(raised, EnvironmentKey.PRODUCTION, user).variationKey();
+			int bucket = evaluationService.bucketFor("rollout-flag", user);
+
+			if (previous.equals("on")) {
+				// Raising "on"'s share never moves an existing "on" user back to "off".
+				assertThat(current).isEqualTo("on");
+			} else if (bucket < 30) {
+				assertThat(current).isEqualTo("off");
+			} else {
+				assertThat(current).isEqualTo("on");
+			}
+		}
+	}
+
+	private Strategy experimentSplit(Map<String, Integer> variationWeights) {
+		Strategy strategy = new Strategy();
+		strategy.setId("strategy-experiment-split");
+		strategy.setPriority(0);
+		strategy.setType(StrategyType.EXPERIMENT_SPLIT);
+		strategy.setVariationWeights(variationWeights);
+
+		return strategy;
 	}
 
 	private int independentBucket(String flagKey, String userId) throws NoSuchAlgorithmException {

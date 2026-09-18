@@ -23,6 +23,8 @@ import com.featureflag.flags.dto.EvaluationRequest;
 import com.featureflag.flags.dto.FlagCreateRequest;
 import com.featureflag.flags.dto.StrategyRequest;
 import com.featureflag.flags.dto.VariationRequest;
+import com.featureflag.flags.metrics.ImpressionEvent;
+import com.featureflag.flags.metrics.ImpressionRepository;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -40,11 +42,15 @@ class FlagEvalControllerIT {
 	@Autowired
 	private FlagCacheService flagCacheService;
 
+	@Autowired
+	private ImpressionRepository impressionRepository;
+
 	@BeforeEach
 	@AfterEach
 	void cleanDatabase() {
 		flagRepository.deleteAll();
 		auditRepository.deleteAll();
+		impressionRepository.deleteAll();
 		flagCacheService.load();
 	}
 
@@ -129,6 +135,47 @@ class FlagEvalControllerIT {
 		assertThat(environmentPayload.get("enabled")).isEqualTo(true);
 		List<Map<String, Object>> strategies = (List<Map<String, Object>>) environmentPayload.get("strategies");
 		assertThat(strategies).hasSize(2);
+	}
+
+	/**
+	 * Impression recording is @Async (see MetricsService.recordImpression), so the write may land
+	 * a moment after the HTTP response comes back; poll with a bounded retry rather than asserting
+	 * immediately, mirroring FlagStreamControllerIT's approach to another async side effect (SSE).
+	 */
+	@Test
+	void evaluatingASingleFlagAsynchronouslyRecordsAnImpression() throws InterruptedException {
+		createFlag("impression-flag");
+
+		restTemplate.postForEntity("/api/v1/eval/PRODUCTION/impression-flag", new EvaluationRequest("user-1", Map.of()),
+				Map.class);
+
+		long deadline = System.currentTimeMillis() + 5000;
+		List<ImpressionEvent> events = List.of();
+
+		while (System.currentTimeMillis() < deadline) {
+			events = impressionRepository.findByFlagKeyAndEnvironment("impression-flag", EnvironmentKey.PRODUCTION);
+
+			if (!events.isEmpty()) {
+				break;
+			}
+
+			Thread.sleep(100);
+		}
+
+		assertThat(events).hasSize(1);
+		assertThat(events.get(0).getUserId()).isEqualTo("user-1");
+		assertThat(events.get(0).getVariationKey()).isEqualTo("off");
+	}
+
+	/** Bulk-evaluate isn't "one SDK evaluating one flag for one user," so it never emits impressions. */
+	@Test
+	void bulkEvaluationNeverRecordsImpressions() throws InterruptedException {
+		createFlag("no-impression-flag");
+
+		restTemplate.postForEntity("/api/v1/eval/PRODUCTION", new EvaluationRequest("user-1", Map.of()), Map.class);
+		Thread.sleep(500);
+
+		assertThat(impressionRepository.findByFlagKeyAndEnvironment("no-impression-flag", EnvironmentKey.PRODUCTION)).isEmpty();
 	}
 
 	private StrategyRequest attributeStrategy(String attribute, String value, String servedVariationKey) {

@@ -14,6 +14,8 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.featureflag.flags.audit.AuditRepository;
+import com.featureflag.flags.metrics.ConversionRepository;
+import com.featureflag.flags.metrics.ImpressionRepository;
 import com.featureflag.shared.ApiException;
 
 /**
@@ -37,6 +39,12 @@ class FlagSeederIT {
 	@Autowired
 	private FlagService flagService;
 
+	@Autowired
+	private ImpressionRepository impressionRepository;
+
+	@Autowired
+	private ConversionRepository conversionRepository;
+
 	@Test
 	void contextStartupSeedsARealisticBaseline() {
 		List<Flag> flags = flagRepository.findAll();
@@ -59,6 +67,39 @@ class FlagSeederIT {
 	}
 
 	@Test
+	void pricingPageRedesignIsSeededWithWeightsAPayloadAndAnEpsilonGreedyBanditInProduction() {
+		Flag flag = flagRepository.findByKey("pricing-page-redesign").orElseThrow();
+
+		assertThat(flag.getVariations()).extracting(Variation::getWeight).containsExactly(34, 33, 33);
+		Variation newHero = flag.getVariations().stream().filter(v -> v.getKey().equals("new-hero")).findFirst().orElseThrow();
+		assertThat(newHero.getPayloadType()).isEqualTo(PayloadType.JSON);
+		assertThat(newHero.getPayloadValue()).contains("heroImage");
+
+		Strategy experimentStrategy = flag.getEnvironments().get(EnvironmentKey.PRODUCTION).getStrategies().stream()
+				.filter(strategy -> strategy.getType() == StrategyType.EXPERIMENT_SPLIT).findFirst().orElseThrow();
+		assertThat(experimentStrategy.getBanditAlgorithm()).isEqualTo(BanditAlgorithm.EPSILON_GREEDY);
+		assertThat(experimentStrategy.getVariationWeights().values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(100);
+
+		assertThat(impressionRepository.findByFlagKeyAndEnvironment("pricing-page-redesign", EnvironmentKey.PRODUCTION))
+				.isNotEmpty();
+		assertThat(conversionRepository.findByFlagKeyAndEnvironment("pricing-page-redesign", EnvironmentKey.PRODUCTION))
+				.isNotEmpty();
+	}
+
+	@Test
+	void experimentalAiSummariesIsSeededWithAThompsonSamplingBanditInStaging() {
+		Flag flag = flagRepository.findByKey("experimental-ai-summaries").orElseThrow();
+
+		Strategy experimentStrategy = flag.getEnvironments().get(EnvironmentKey.STAGING).getStrategies().stream()
+				.filter(strategy -> strategy.getType() == StrategyType.EXPERIMENT_SPLIT).findFirst().orElseThrow();
+		assertThat(experimentStrategy.getBanditAlgorithm()).isEqualTo(BanditAlgorithm.THOMPSON_SAMPLING);
+		assertThat(experimentStrategy.getVariationWeights().values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(100);
+
+		assertThat(impressionRepository.findByFlagKeyAndEnvironment("experimental-ai-summaries", EnvironmentKey.STAGING))
+				.isNotEmpty();
+	}
+
+	@Test
 	void seededDependencyBlocksArchivingItsPrerequisite() {
 		assertThatThrownBy(() -> flagService.archive("new-checkout-flow", "tester")).isInstanceOf(ApiException.class)
 				.hasFieldOrPropertyWithValue("code", "FLAG_HAS_DEPENDENTS");
@@ -71,10 +112,14 @@ class FlagSeederIT {
 	void runningTheSeederAgainResetsToTheSameBaselineWithoutDuplicating() {
 		long flagCountBefore = flagRepository.count();
 		long auditCountBefore = auditRepository.count();
+		long impressionCountBefore = impressionRepository.count();
+		long conversionCountBefore = conversionRepository.count();
 
 		flagSeeder.run(new DefaultApplicationArguments());
 
 		assertThat(flagRepository.count()).isEqualTo(flagCountBefore);
 		assertThat(auditRepository.count()).isEqualTo(auditCountBefore);
+		assertThat(impressionRepository.count()).isEqualTo(impressionCountBefore);
+		assertThat(conversionRepository.count()).isEqualTo(conversionCountBefore);
 	}
 }

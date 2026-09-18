@@ -5,5 +5,7 @@ public enum AuditAction {
 	UPDATE,
 	TOGGLE,
 	ARCHIVE,
-	RESTORE
+	RESTORE,
+	REALLOCATE,
+	PROMOTE
 }

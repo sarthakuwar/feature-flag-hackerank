@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.featureflag.flags.dto.BootstrapFlagResponse;
 import com.featureflag.flags.dto.EvaluationRequest;
+import com.featureflag.flags.metrics.MetricsService;
 import com.featureflag.shared.ApiException;
 
 /**
@@ -34,11 +35,21 @@ public class FlagEvalController {
 
 	private final FlagEvaluationService flagEvaluationService;
 
-	public FlagEvalController(FlagCacheService flagCacheService, FlagEvaluationService flagEvaluationService) {
+	private final MetricsService metricsService;
+
+	public FlagEvalController(FlagCacheService flagCacheService, FlagEvaluationService flagEvaluationService,
+			MetricsService metricsService) {
 		this.flagCacheService = flagCacheService;
 		this.flagEvaluationService = flagEvaluationService;
+		this.metricsService = metricsService;
 	}
 
+	/**
+	 * The one route that stands in for a real SDK's isEnabled/getVariant call, so it's the only one
+	 * that emits an impression - fired async (see MetricsService.recordImpression) after the result
+	 * is already computed, so telemetry never adds latency or a failure mode to evaluation itself.
+	 * Bulk-evaluate and bootstrap don't emit; neither is "one SDK evaluating one flag for one user."
+	 */
 	@PostMapping("/{environment}/{key}")
 	public ResponseEntity<Map<String, Object>> evaluateOne(@PathVariable EnvironmentKey environment, @PathVariable String key,
 			@RequestBody(required = false) EvaluationRequest request) {
@@ -46,7 +57,10 @@ public class FlagEvalController {
 				.filter(candidate -> candidate.getLifecycle() == FlagLifecycle.ACTIVE)
 				.orElseThrow(() -> new ApiException(404, "FLAG_NOT_FOUND", "No active flag exists with key '" + key + "'."));
 
-		EvaluationResult result = flagEvaluationService.evaluate(flag, environment, userContextFrom(request));
+		UserContext userContext = userContextFrom(request);
+		EvaluationResult result = flagEvaluationService.evaluate(flag, environment, userContext);
+		int bucket = flagEvaluationService.bucketFor(key, userContext);
+		metricsService.recordImpression(key, environment, result.variationKey(), userContext.userId(), bucket, result.reason());
 
 		return ResponseEntity.ok(Map.of("data", result));
 	}
