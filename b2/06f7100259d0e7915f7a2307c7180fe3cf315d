@@ -1,0 +1,58 @@
+backend/src/test/java/com/featureflag/flags/FlagPagingControllerIT.java
+  s_a834399ccae02b::t_02789fb60de301 1-370
+  s_a834399ccae02b::t_03029edbcc933f 371-372
+backend/src/test/java/com/featureflag/flags/targeting/MobileApplicationControllerIT.java
+  s_a834399ccae02b::t_fd7596bab0c8d6 1-311
+  s_a834399ccae02b::t_a4e8d2d5b25abe 312-313
+backend/src/test/java/com/featureflag/flags/targeting/SegmentControllerIT.java
+  s_a834399ccae02b::t_0c15a352aae783 1-459
+  s_a834399ccae02b::t_2bd25399fa5b7a 460-469
+backend/src/main/java/com/featureflag/flags/FlagAdminController.java
+  s_a834399ccae02b::t_f21c199a465b90 6,18,31-32,52-56,58,120-122,124-125,127
+backend/src/main/java/com/featureflag/flags/FlagIndexInitializer.java
+  s_a834399ccae02b::t_59c1fbb531aba0 8-9,30-36
+backend/src/main/java/com/featureflag/flags/FlagRepository.java
+  s_a834399ccae02b::t_b6f8e63c6a1a5a 6-7,9,18-22
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_a834399ccae02b::t_348dc2fae14fc7 9,12-13,26,38-39,66-74
+backend/src/main/java/com/featureflag/flags/audit/AuditRepository.java
+  s_a834399ccae02b::t_2d41e6a198a7e3 3-4,9
+backend/src/main/java/com/featureflag/flags/audit/AuditService.java
+  s_a834399ccae02b::t_01e87c1f8a7e62 3-4,7-8,12-13,24-26
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationController.java
+  s_a834399ccae02b::t_e54827e6abda6b 6,15,22-23,37-40,42
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationRepository.java
+  s_a834399ccae02b::t_22286e611a3404 5-6,8,15-18
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationService.java
+  s_a834399ccae02b::t_98da3fe2beb069 5-6,14,28-29,49-51
+backend/src/main/java/com/featureflag/flags/targeting/SegmentService.java
+  s_a834399ccae02b::t_bc1a2d862aa1c5 18,49,55,58,220-223,228
+backend/src/main/java/com/featureflag/shared/PageMeta.java
+  s_a834399ccae02b::t_055434298aaae0 1-11
+backend/src/main/java/com/featureflag/shared/PageParams.java
+  s_a834399ccae02b::t_e8720512c295eb 1-57
+backend/src/test/java/com/featureflag/flags/FlagServiceTest.java
+  s_a834399ccae02b::t_75a50fdb9ce5ab 18,23,27-31,47,76-108
+backend/src/test/java/com/featureflag/flags/targeting/MobileApplicationServiceTest.java
+  s_a834399ccae02b::t_275d9bd065a327 18,21-25,31,128-140
+backend/src/test/java/com/featureflag/flags/targeting/SegmentServiceTest.java
+  s_a834399ccae02b::t_d466faff7faf3b 29,52,64,336,350,367,377-420
+backend/src/test/java/com/featureflag/shared/PageParamsTest.java
+  s_a834399ccae02b::t_9064bb1533c736 1-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b206f7100259d0e7915f7a2307c7180fe3cf315d",
+  "prompts": {},
+  "sessions": {
+    "s_a834399ccae02b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a21944f-9765-4f22-b724-f4e6ae68a582",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
