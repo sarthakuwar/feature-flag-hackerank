@@ -1,0 +1,65 @@
+backend/src/main/java/com/featureflag/flags/experiment/ExperimentService.java
+  s_a834399ccae02b::t_05513f9f5aa9fb 10-12,46-47,50-51,169-173,176-190
+backend/src/main/java/com/featureflag/flags/experiment/ThompsonSamplingAllocator.java
+  s_a834399ccae02b::t_b9ce919f3d394b 15-18,25-27,55-56,90-94,96,100-102,108-110,112-114,128-129
+backend/src/main/java/com/featureflag/flags/metrics/ConversionMetricsQueries.java
+  s_a834399ccae02b::t_9c2417e2a7f872 1-12
+backend/src/main/java/com/featureflag/flags/metrics/ConversionMetricsQueriesImpl.java
+  s_a834399ccae02b::t_913f0db9dd4e40 1-35
+backend/src/main/java/com/featureflag/flags/metrics/ConversionRepository.java
+  s_a834399ccae02b::t_08c1b76e823e90 9
+backend/src/main/java/com/featureflag/flags/metrics/ConversionService.java
+  s_a834399ccae02b::t_23e1c0245b28ca 1-45
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionMetricsQueries.java
+  s_a834399ccae02b::t_50982511869dd5 1-15
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionMetricsQueriesImpl.java
+  s_a834399ccae02b::t_631e49807d8ecd 1-39
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionRepository.java
+  s_a834399ccae02b::t_eb97a93adf428b 10
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionWriter.java
+  s_a834399ccae02b::t_0bdd8e9d25abdd 1-148
+backend/src/main/java/com/featureflag/flags/metrics/MetricsController.java
+  s_a834399ccae02b::t_aa11ad2b5c8c7c 30,32,34,39
+backend/src/main/java/com/featureflag/flags/metrics/MetricsService.java
+  s_a834399ccae02b::t_57b046d2e28dbe 32-35,40,45,48,53-57,61-62,76-77,80-84,108-115,124-125,141-145,162,172,174
+backend/src/main/java/com/featureflag/flags/metrics/TelemetryIndexInitializer.java
+  s_a834399ccae02b::t_ce14210f52ce9c 1-71
+backend/src/main/java/com/featureflag/flags/metrics/VariationCount.java
+  s_a834399ccae02b::t_b5b4b8fa3c8d6b 1-5
+backend/src/test/java/com/featureflag/flags/FlagEvalControllerIT.java
+  s_a834399ccae02b::t_c8bfb0fe51993e 32,53-55,163,165,170,186
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceTest.java
+  s_a834399ccae02b::t_061ced70967e53 6-7,9-11,27,42,187-254,284-295
+backend/src/test/java/com/featureflag/flags/experiment/ThompsonSamplingAllocatorTest.java
+  s_a834399ccae02b::t_b75a9a31e666d0 4,6,73-148
+backend/src/test/java/com/featureflag/flags/metrics/ConversionServiceTest.java
+  s_a834399ccae02b::t_100913d821c845 1-66
+backend/src/test/java/com/featureflag/flags/metrics/ImpressionWriterTest.java
+  s_a834399ccae02b::t_f934afc18cdb66 1-190
+backend/src/test/java/com/featureflag/flags/metrics/MetricsControllerIT.java
+  s_a834399ccae02b::t_d0e171890fb4cf 5,16-17,27-29,32-33,58-60,101-183,218-228
+backend/src/test/java/com/featureflag/flags/metrics/MetricsServiceTest.java
+  s_a834399ccae02b::t_cc3a4b1ebf949b 5,7,23,35,37,41,52,61,122,128-129,131,135-136,138-211,250-253
+backend/src/test/java/com/featureflag/flags/metrics/TelemetryIndexInitializerIT.java
+  s_a834399ccae02b::t_1b17a8c68512cc 1-97
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutControllerIT.java
+  s_a834399ccae02b::t_2d97227d7836fe 52,117-119,276-277
+backend/src/test/java/com/featureflag/flags/targeting/ExperimentInclusionIT.java
+  s_a834399ccae02b::t_a2600a1eb223e8 44,77-79,308-309,327,329-330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3ded8edbcc168e42e638b06d1a57c6105234cb81",
+  "prompts": {},
+  "sessions": {
+    "s_a834399ccae02b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a21944f-9765-4f22-b724-f4e6ae68a582",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
