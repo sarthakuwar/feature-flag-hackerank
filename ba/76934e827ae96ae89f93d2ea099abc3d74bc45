@@ -1,0 +1,96 @@
+backend/src/test/java/com/featureflag/flags/rollout/RolloutScheduleTest.java
+  s_988a809dfed882::t_5a232d49a68e3e 1-242
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutScheduler.java
+  s_988a809dfed882::t_a0e7d875d5fbfd 1-28
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutService.java
+  s_988a809dfed882::t_3b3a768f4b51eb 1-201,203-210,212-215,217,219-221,224-227,231-323
+  s_988a809dfed882::t_73404f2f4ee4b8 202,211,216,218,222-223,228-230
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutController.java
+  s_988a809dfed882::t_a3d9f83496e253 1-78
+backend/src/main/java/com/featureflag/shared/ClockConfig.java
+  s_988a809dfed882::t_9d29aa80226176 1-19
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutControllerIT.java
+  s_988a809dfed882::t_d699eb1a0263ee 198,503,624,671,705,707-710,712-714
+  s_988a809dfed882::t_c76e2fb9e4cd63 1-197,199-502,504-623,625-670,672-704,706,711,715-794
+backend/src/main/java/com/featureflag/flags/audit/AuditAction.java
+  s_988a809dfed882::t_98d3a9596ca53f 10-13
+backend/src/main/java/com/featureflag/flags/rollout/dto/ProgressiveRolloutResponse.java
+  s_988a809dfed882::t_4b415c1a95fb59 1-32
+backend/src/test/java/com/featureflag/flags/FlagEvaluationProgressiveRolloutTest.java
+  s_988a809dfed882::t_2ed103ff049ca3 1-360
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceProgressiveRolloutTest.java
+  s_988a809dfed882::t_8765938d74dc98 1-119
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_988a809dfed882::t_d589c1f18f1777 180-220
+  s_988a809dfed882::t_95caae0e35a143 10
+  s_988a809dfed882::t_afb9547b4effa1 430-432
+  s_988a809dfed882::t_60ab3b41f3f5a9 156-161,163,179
+backend/src/main/java/com/featureflag/flags/rollout/dto/StartProgressiveRolloutRequest.java
+  s_988a809dfed882::t_8de14e3e552f77 1-13
+backend/src/test/java/com/featureflag/shared/MutableClock.java
+  s_988a809dfed882::t_8b9efcde57c66b 1-40
+backend/src/main/java/com/featureflag/flags/experiment/ExperimentService.java
+  s_988a809dfed882::t_cbf9754bedb282 203-204
+  s_988a809dfed882::t_45c1b64de11a4e 79-80
+  s_988a809dfed882::t_4748c6c477117c 226-233
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_988a809dfed882::t_7c174bce6839b1 10-13
+backend/src/main/java/com/featureflag/flags/EnvironmentConfig.java
+  s_988a809dfed882::t_a180cac0299c23 52-73
+  s_988a809dfed882::t_73a37ac9ef5db4 6,16-18
+backend/src/test/java/com/featureflag/flags/rollout/RolloutFixtures.java
+  s_988a809dfed882::t_1dcc75ebd3b1cc 1-158
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutSchedulerTest.java
+  s_988a809dfed882::t_f5f79661ca8987 1-35
+backend/src/main/java/com/featureflag/flags/rollout/RolloutSchedule.java
+  s_988a809dfed882::t_7ea89b0a01cf7f 1-142
+backend/src/main/java/com/featureflag/flags/EvaluationReason.java
+  s_988a809dfed882::t_17cb6d6ea07242 8
+backend/src/test/java/com/featureflag/flags/FlagSeederProgressiveRolloutIT.java
+  s_988a809dfed882::t_cad80b623e2fb2 1-88
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutServiceTest.java
+  s_988a809dfed882::t_2663a9380b5571 1-659
+backend/src/main/java/com/featureflag/flags/ProgressiveRollout.java
+  s_988a809dfed882::t_bb2f2e60adda56 1-218
+backend/src/main/java/com/featureflag/shared/SchedulingConfig.java
+  s_988a809dfed882::t_dd1010d39080f4 1-13
+backend/src/main/java/com/featureflag/flags/FlagSeeder.java
+  s_988a809dfed882::t_4363e0befa6b77 23-24,52-53,56-57,65,162-170
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_988a809dfed882::t_851ceb41de0195 57-62
+  s_988a809dfed882::t_0e23693449656a 6,10
+  s_988a809dfed882::t_357a6b0ba89d26 89-99
+  s_988a809dfed882::t_dd3c24b281a5fe 20-24,31-41,88
+  s_988a809dfed882::t_070e78182fd88a 73-78
+backend/src/test/java/com/featureflag/flags/ProgressiveRolloutTest.java
+  s_988a809dfed882::t_e587fd1069c19c 1-107
+backend/src/test/java/com/featureflag/flags/FlagServiceProgressiveRolloutTest.java
+  s_988a809dfed882::t_8a44b08cc9277e 98,100-110
+  s_988a809dfed882::t_1bba77d276012f 1-97,99,111-246
+backend/src/main/java/com/featureflag/flags/RolloutStatus.java
+  s_988a809dfed882::t_5968d5efdac10f 1-7
+backend/src/main/java/com/featureflag/flags/RolloutStage.java
+  s_988a809dfed882::t_c10b817f020057 1-36
+backend/src/test/resources/application-test.properties
+  s_988a809dfed882::t_38379d4a5be355 5
+backend/src/main/java/com/featureflag/flags/rollout/dto/RolloutStageRequest.java
+  s_988a809dfed882::t_5dff3acd45a92e 1-4
+backend/src/main/java/com/featureflag/flags/rollout/dto/StopProgressiveRolloutRequest.java
+  s_988a809dfed882::t_3f9e6062c7f5d4 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ba76934e827ae96ae89f93d2ea099abc3d74bc45",
+  "prompts": {},
+  "sessions": {
+    "s_988a809dfed882": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db4888ac-cf6b-4655-89f7-1847fdf167a9",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
