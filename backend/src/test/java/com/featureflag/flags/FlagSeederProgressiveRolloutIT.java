@@ -78,6 +78,54 @@ class FlagSeederProgressiveRolloutIT {
 				.isInstanceOfSatisfying(ApiException.class, exception -> assertThat(exception.getCode()).isEqualTo("ROLLOUT_ALREADY_ACTIVE"));
 	}
 
+	private ProgressiveRollout seededRuleRollout() {
+		Flag flag = flagRepository.findByKey("pricing-page-redesign").orElseThrow();
+
+		return flag.getEnvironments().get(EnvironmentKey.STAGING).activeProgressiveRollout().orElseThrow();
+	}
+
+	@Test
+	void pricingPageRedesignIsSeededWithARolloutRampingATargetingRuleInStaging() {
+		ProgressiveRollout rollout = seededRuleRollout();
+		Flag flag = flagRepository.findByKey("pricing-page-redesign").orElseThrow();
+		com.featureflag.flags.targeting.TargetingRule rule = flag.getEnvironments().get(EnvironmentKey.STAGING).getRules().stream()
+				.filter(candidate -> candidate.getId().equals(rollout.getRuleId())).findFirst().orElseThrow();
+
+		assertThat(rollout.targetsRule()).isTrue();
+		assertThat(rollout.getStrategyId()).isNull();
+		assertThat(rollout.getFromVariationKey()).isEqualTo("control");
+		assertThat(rollout.getToVariationKey()).isEqualTo("new-hero");
+		assertThat(rollout.getStages()).hasSize(4);
+		assertThat(rule.getServedVariationKey()).as("the rule still serves the old variation until the ramp ends").isEqualTo("control");
+	}
+
+	@Test
+	void theSeededRuleRolloutRampsOnlyTheStaffAudienceAndAtTheStartMovesARoughlyQuarterOfThem() {
+		Flag flag = flagRepository.findByKey("pricing-page-redesign").orElseThrow();
+		long onCount = java.util.stream.IntStream.range(0, 1000)
+				.mapToObj(index -> evaluationService.evaluate(flag, EnvironmentKey.STAGING,
+						new UserContext("staff-" + index, Map.of("email", "staff-" + index + "@featureflag.dev"))))
+				.peek(result -> assertThat(result.reason()).isEqualTo(EvaluationReason.PROGRESSIVE_ROLLOUT))
+				.filter(result -> "new-hero".equals(result.variationKey())).count();
+
+		assertThat(onCount / 1000.0).isBetween(0.18, 0.32);
+		assertThat(evaluationService.evaluate(flag, EnvironmentKey.STAGING, new UserContext("outsider", Map.of("email", "x@example.com")))
+				.reason()).as("non-staff are not ramped").isNotEqualTo(EvaluationReason.PROGRESSIVE_ROLLOUT);
+	}
+
+	@Test
+	void theSeededRuleRolloutOccupiesStagingButNotOtherEnvironmentsOfThatFlag() {
+		String ruleId = seededRuleRollout().getRuleId();
+
+		assertThatThrownBy(() -> rolloutService.start("pricing-page-redesign", EnvironmentKey.STAGING,
+				StartProgressiveRolloutRequest.forRule(ruleId, "minimal", null, null, 3, 30, "tester")))
+				.isInstanceOfSatisfying(ApiException.class, exception -> assertThat(exception.getCode()).isEqualTo("ROLLOUT_ALREADY_ACTIVE"));
+
+		Flag flag = flagRepository.findByKey("pricing-page-redesign").orElseThrow();
+		assertThat(flag.getEnvironments().get(EnvironmentKey.PRODUCTION).getProgressiveRollouts()).isEmpty();
+		assertThat(flag.getEnvironments().get(EnvironmentKey.DEVELOPMENT).getProgressiveRollouts()).isEmpty();
+	}
+
 	@Test
 	void otherEnvironmentsOfTheSeededFlagHaveNoRollout() {
 		Flag flag = flagRepository.findByKey("dark-mode-default").orElseThrow();

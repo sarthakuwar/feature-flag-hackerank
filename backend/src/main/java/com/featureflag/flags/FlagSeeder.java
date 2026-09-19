@@ -29,6 +29,7 @@ import com.featureflag.flags.targeting.MobileApplicationService;
 import com.featureflag.flags.targeting.SegmentRepository;
 import com.featureflag.flags.targeting.SegmentService;
 import com.featureflag.flags.targeting.TargetingCacheService;
+import com.featureflag.flags.targeting.TargetingRule;
 import com.featureflag.flags.targeting.TargetingService;
 import com.featureflag.flags.targeting.dto.BulkTargetRequest;
 import com.featureflag.flags.targeting.dto.ClauseRequest;
@@ -298,6 +299,14 @@ public class FlagSeeder implements ApplicationRunner {
 				"Internal organizations always see the new hero", null,
 				List.of(new ClauseRequest("organization", null, ClauseOperator.IN_SEGMENT, List.of("internal-orgs"), false)),
 				"new-hero", null, null, "seed"));
+
+		// A progressive rollout ramping a targeting rule: staff (the STAGING beta-testers segment) currently
+		// get "control" and are moved to "new-hero" over four hours. STAGING has no experiment on this
+		// flag (that is PRODUCTION's), which is the one thing a rollout cannot coexist with.
+		TargetingRule staffRule = targetingService.createRule("pricing-page-redesign", EnvironmentKey.STAGING, new TargetingRuleRequest(
+				"Staff move to the new hero gradually", null, List.of(inBetaTesters), "control", null, null, "seed"));
+		progressiveRolloutService.start("pricing-page-redesign", EnvironmentKey.STAGING,
+				StartProgressiveRolloutRequest.forRule(staffRule.getId(), "new-hero", null, null, 4, 4 * 60, "seed"));
 
 		targetingService.bulkTarget("experimental-ai-summaries", EnvironmentKey.STAGING,
 				new BulkTargetRequest("user", "detailed", BulkOperation.ADD, List.of("user-1001", "user-1002"), "seed"));
