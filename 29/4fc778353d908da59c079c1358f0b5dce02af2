@@ -1,0 +1,61 @@
+backend/src/main/java/com/featureflag/flags/FlagEvalController.java
+  s_a834399ccae02b::t_baad9b85d49615 99-100
+backend/src/test/java/com/featureflag/flags/FlagEvaluationExperimentInclusionTest.java
+  s_a834399ccae02b::t_c7a044953c5b06 1-147
+backend/src/test/java/com/featureflag/flags/FlagEvaluationPrerequisiteTest.java
+  s_a834399ccae02b::t_67ec729dd79236 202,208,210-211
+  s_a834399ccae02b::t_3a35c86f9c7f58 1-201,203-207,209,212-251
+backend/src/test/java/com/featureflag/flags/FlagEvalControllerIT.java
+  s_a834399ccae02b::t_3de01083b0564b 174-350
+  s_a834399ccae02b::t_6dc35df4ab96d4 31
+  s_a834399ccae02b::t_513c369643d461 355,357
+  s_a834399ccae02b::t_7f5088cc5fa390 5-6,9
+  s_a834399ccae02b::t_aacea148560638 161
+backend/src/main/java/com/featureflag/flags/FlagCacheService.java
+  s_a834399ccae02b::t_b3fbc5356a1d9e 16
+  s_a834399ccae02b::t_476f3aa7f03685 36
+backend/src/test/java/com/featureflag/flags/dto/EvaluationRequestTest.java
+  s_a834399ccae02b::t_0094d68352c998 1-149,151
+  s_a834399ccae02b::t_5a5ccf8c6af6cd 150
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_a834399ccae02b::t_cba32adaa0c622 143
+  s_a834399ccae02b::t_28b5d04be9f364 7-8,12
+  s_a834399ccae02b::t_2a66db944bcfc0 137-138
+  s_a834399ccae02b::t_4f8de647e7ae70 285
+  s_a834399ccae02b::t_8b731434e756d0 24-28,55,68-69,300
+  s_a834399ccae02b::t_965ec2862bd252 301-322
+  s_a834399ccae02b::t_6333d0d7737e36 32-33
+  s_a834399ccae02b::t_e229932e3f86ef 110-117
+  s_a834399ccae02b::t_4591c852d43b7a 156-216
+  s_a834399ccae02b::t_5aa99706e4dbcf 47-51,54,59,61,65-67
+backend/src/test/java/com/featureflag/flags/FlagEvaluationBucketingTest.java
+  s_a834399ccae02b::t_6b85b4ff8d462d 1-165
+backend/src/main/java/com/featureflag/flags/EvaluationReason.java
+  s_a834399ccae02b::t_ea03c9269e9df9 5
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_a834399ccae02b::t_bc85e6c29a545d 4-12,15,17-30,36,39-49,52,54-55,58,60-61,64-65
+backend/src/main/java/com/featureflag/flags/FlagLookup.java
+  s_a834399ccae02b::t_fb0f4b7a6b338c 1-15
+backend/src/main/java/com/featureflag/flags/dto/BootstrapFlagResponse.java
+  s_a834399ccae02b::t_56863a5e2a15b4 3,9-11,13-14,20-23,26-54,57-59
+backend/src/main/java/com/featureflag/flags/dto/EvaluationRequest.java
+  s_a834399ccae02b::t_554f27f016f949 6-7,17-19,23-32,37,45-93,98-101
+backend/src/test/java/com/featureflag/flags/targeting/TargetingEvaluationTest.java
+  s_a834399ccae02b::t_aef4349386760e 459,473-474
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "294fc778353d908da59c079c1358f0b5dce02af2",
+  "prompts": {},
+  "sessions": {
+    "s_a834399ccae02b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a21944f-9765-4f22-b724-f4e6ae68a582",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
