@@ -1,0 +1,108 @@
+backend/src/main/java/com/featureflag/flags/targeting/ClauseValidator.java
+  s_a834399ccae02b::t_089a275c030284 169-170,172-174
+backend/src/main/java/com/featureflag/shared/SecurityHeadersFilter.java
+  s_a834399ccae02b::t_2414dae215380a 1-28
+backend/src/test/java/com/featureflag/shared/CustomCorsOriginsIT.java
+  s_a834399ccae02b::t_a8940e63efcd8a 1-43
+backend/src/test/java/com/featureflag/flags/SeedGuardTest.java
+  s_a834399ccae02b::t_3d8df2419c48e2 1-79
+backend/src/test/java/com/featureflag/shared/MongoConfigTest.java
+  s_a834399ccae02b::t_b8b84f84dcb4cd 1-36
+backend/src/main/java/com/featureflag/flags/targeting/BudgetedCharSequence.java
+  s_a834399ccae02b::t_4c0057fa907e09 1-51
+backend/src/test/java/com/featureflag/flags/FlagStreamControllerIT.java
+  s_a834399ccae02b::t_e5d85996e641a0 41-43,53,59-62,64
+backend/src/test/java/com/featureflag/shared/OperationsIT.java
+  s_a834399ccae02b::t_d6d4d379606f41 1-127
+  s_a834399ccae02b::t_af3f6d68af558c 128-145
+backend/src/main/java/com/featureflag/flags/FlagStreamService.java
+  s_a834399ccae02b::t_3dc62c1a1c2698 4-5,7-8,10-15,17-21,25-28,35-39,42-83,85,87,89-112,114-117,119-131,133-134,136-137,142,148,155,159-205,207-222,224-225,229-262,266-306
+backend/src/main/java/com/featureflag/flags/FlagStreamExceptionHandler.java
+  s_a834399ccae02b::t_045de0a4d46fc8 1-30
+backend/src/test/java/com/featureflag/flags/targeting/TargetingServiceTest.java
+  s_a834399ccae02b::t_88822a7dcb1179 191-204
+backend/src/test/java/com/featureflag/FeatureFlagApplicationTest.java
+  s_a834399ccae02b::t_b3cf9ff6549405 1-14
+backend/src/main/java/com/featureflag/flags/targeting/ClauseMatcher.java
+  s_a834399ccae02b::t_614ce2b7d2023a 195-216
+  s_a834399ccae02b::t_dad8b3bbbdc909 23-25,31-36
+  s_a834399ccae02b::t_2ad54a9bbf40df 6,10-12,37
+backend/src/test/java/com/featureflag/shared/HealthControllerTest.java
+  s_a834399ccae02b::t_e889f7a164ee38 1-106
+backend/src/main/java/com/featureflag/flags/targeting/RegexSafety.java
+  s_a834399ccae02b::t_487b1f3b80411f 1-261
+backend/src/test/java/com/featureflag/flags/SseTestClient.java
+  s_a834399ccae02b::t_79b47cd5ab6a6b 1-111
+backend/src/main/java/com/featureflag/shared/HealthController.java
+  s_a834399ccae02b::t_8518c03ba01d24 12-20,28-33,35-36,49-65
+  s_a834399ccae02b::t_187898dcac659e 66
+backend/src/main/java/com/featureflag/flags/SeedGuard.java
+  s_a834399ccae02b::t_01fe1e877b2aa6 1-64
+  s_a834399ccae02b::t_04002f1e3a95a0 65
+backend/src/test/java/com/featureflag/flags/FlagStreamLimitsIT.java
+  s_a834399ccae02b::t_aeb4373d6e6f63 1-115
+backend/src/test/java/com/featureflag/flags/FlagStreamTimeoutIT.java
+  s_a834399ccae02b::t_cd6c7f4e4b9587 1-32
+scripts/dev-backend.mjs
+  s_a834399ccae02b::t_93cc8537f54019 1-47
+  s_a834399ccae02b::t_ed3957c9703019 48
+backend/src/main/java/com/featureflag/shared/RequestBodyLimitFilter.java
+  s_a834399ccae02b::t_3f058fc6678ec4 1-136
+  s_a834399ccae02b::t_c86b8b7b787bd3 137-142
+Dockerfile
+  s_a834399ccae02b::t_31b687fd345d03 1-35
+backend/src/test/java/com/featureflag/flags/FlagStreamServiceTest.java
+  s_a834399ccae02b::t_9fff4cc1364728 1-98
+backend/src/main/java/com/featureflag/shared/WebConfig.java
+  s_a834399ccae02b::t_11b7f69302bbf1 3-5,10,14-20,23-24
+backend/src/test/java/com/featureflag/flags/targeting/ClauseMatcherTest.java
+  s_a834399ccae02b::t_b52dcf6d7c3336 73-95,97-99,107-115
+  s_a834399ccae02b::t_2c062f75cf9121 72,100-106
+  s_a834399ccae02b::t_a8534464859edd 4-5,7,96
+.dockerignore
+  s_a834399ccae02b::t_c4d609d79e6feb 1-19
+.github/workflows/ci.yml
+  s_a834399ccae02b::t_e0baece4638c90 1-42
+backend/.env.example
+  s_a834399ccae02b::t_c3455d702aaacb 3-21
+backend/src/main/java/com/featureflag/FeatureFlagApplication.java
+  s_a834399ccae02b::t_09dc4720f9b35d 3-4,11-19,21-23
+backend/src/main/java/com/featureflag/flags/FlagCacheService.java
+  s_a834399ccae02b::t_676f767960aee3 22-23,32-37
+backend/src/main/java/com/featureflag/flags/FlagSeeder.java
+  s_a834399ccae02b::t_7c19eeaf4d4397 7-8,44-49,56-59,88,95,114-124
+backend/src/main/java/com/featureflag/flags/targeting/TargetingCacheService.java
+  s_a834399ccae02b::t_cdb9e6c3ee9174 30-31,43-48
+backend/src/main/java/com/featureflag/shared/MongoConfig.java
+  s_a834399ccae02b::t_4786cdf414c0ce 3-7,20-36
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentControllerIT.java
+  s_a834399ccae02b::t_97bf0ae9be3ea6 26,28,47-49,181,186-188,190
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutControllerIT.java
+  s_a834399ccae02b::t_7e37e2c2932b04 33,35,95-97,635,639-641,643-645,647-650
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutControllerIT.java
+  s_a834399ccae02b::t_bb4d42cd6717ba 32,35,107,170,173-174,176-177
+backend/src/test/java/com/featureflag/flags/targeting/TargetingControllerIT.java
+  s_a834399ccae02b::t_36cdd253874f32 30,32,90,518,521-525,527-529,531-535,539-542,544,546-547
+bun.lock
+  s_a834399ccae02b::t_8b677ade545995 3
+package.json
+  s_a834399ccae02b::t_d953d1ffab5f83 15
+setup.sh
+  s_a834399ccae02b::t_20faa471375a29 27-34,36-39,44,57,63,65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6d3e6b4d3e852b4e92de1d568fc871658fdefc07",
+  "prompts": {},
+  "sessions": {
+    "s_a834399ccae02b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a21944f-9765-4f22-b724-f4e6ae68a582",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
