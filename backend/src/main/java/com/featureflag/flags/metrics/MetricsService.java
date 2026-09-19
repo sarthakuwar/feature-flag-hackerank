@@ -20,7 +20,6 @@ import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagLifecycle;
 import com.featureflag.flags.Strategy;
 import com.featureflag.flags.StrategyType;
-import com.featureflag.flags.Variation;
 import com.featureflag.flags.metrics.dto.ConversionRequest;
 import com.featureflag.flags.metrics.dto.ExperimentMetricsResponse;
 import com.featureflag.flags.metrics.dto.VariationMetrics;

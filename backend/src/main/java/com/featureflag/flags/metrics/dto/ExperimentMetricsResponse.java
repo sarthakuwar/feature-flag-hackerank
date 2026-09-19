@@ -12,9 +12,4 @@ import com.featureflag.flags.EnvironmentKey;
  */
 public record ExperimentMetricsResponse(String flagKey, EnvironmentKey environment, List<VariationMetrics> variations,
 		BanditAlgorithm banditAlgorithm, Double epsilon, long excludedImpressions) {
-
-	public ExperimentMetricsResponse(String flagKey, EnvironmentKey environment, List<VariationMetrics> variations,
-			BanditAlgorithm banditAlgorithm, Double epsilon) {
-		this(flagKey, environment, variations, banditAlgorithm, epsilon, 0);
-	}
 }

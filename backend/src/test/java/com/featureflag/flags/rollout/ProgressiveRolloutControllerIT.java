@@ -41,7 +41,6 @@ import com.featureflag.flags.FlagEvaluationService;
 import com.featureflag.flags.FlagRepository;
 import com.featureflag.flags.FlagType;
 import com.featureflag.flags.ProgressiveRollout;
-import com.featureflag.flags.RolloutStatus;
 import com.featureflag.flags.StrategyType;
 import com.featureflag.flags.UserContext;
 import com.featureflag.flags.audit.AuditRepository;

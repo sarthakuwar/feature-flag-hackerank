@@ -26,10 +26,6 @@ public enum ClauseOperator {
 	/** ld_application contexts only: whether the app version is at or above its registered minimum supported version. */
 	APP_VERSION_SUPPORTED;
 
-	public boolean readsAttribute() {
-		return this != IN_SEGMENT && this != APP_VERSION_SUPPORTED;
-	}
-
 	public boolean isNumeric() {
 		return this == LESS_THAN || this == LESS_THAN_OR_EQUAL || this == GREATER_THAN || this == GREATER_THAN_OR_EQUAL;
 	}

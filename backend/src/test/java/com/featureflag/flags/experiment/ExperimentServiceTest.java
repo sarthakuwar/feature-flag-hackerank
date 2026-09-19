@@ -159,7 +159,7 @@ class ExperimentServiceTest {
 				.thenReturn(new ExperimentMetricsResponse("exp-flag", EnvironmentKey.PRODUCTION,
 						List.of(new VariationMetrics("a", 100, 5, 0.05, 34), new VariationMetrics("b", 100, 40, 0.40, 33),
 								new VariationMetrics("c", 100, 10, 0.10, 33)),
-						BanditAlgorithm.EPSILON_GREEDY, 0.1));
+						BanditAlgorithm.EPSILON_GREEDY, 0.1, 0));
 
 		Flag saved = experimentService.reallocateNow("exp-flag", EnvironmentKey.PRODUCTION, "tester");
 

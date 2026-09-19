@@ -73,16 +73,6 @@ class FlagCacheServiceTest {
 	}
 
 	@Test
-	void evictRemovesAFlagFromTheCache() {
-		flagCacheService.put(flagWithKey("flag-a"));
-
-		flagCacheService.evict("flag-a");
-
-		assertThat(flagCacheService.get("flag-a")).isEmpty();
-		assertThat(flagCacheService.all()).isEmpty();
-	}
-
-	@Test
 	void getForAnUnknownKeyReturnsEmptyRatherThanThrowing() {
 		assertThat(flagCacheService.get("does-not-exist")).isEmpty();
 	}

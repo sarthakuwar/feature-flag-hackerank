@@ -33,10 +33,6 @@ public class FlagCacheService {
 		flagsByKey.put(flag.getKey(), flag);
 	}
 
-	public void evict(String key) {
-		flagsByKey.remove(key);
-	}
-
 	public Optional<Flag> get(String key) {
 		return Optional.ofNullable(flagsByKey.get(key));
 	}

@@ -9,16 +9,6 @@ package com.featureflag.flags;
 public record EvaluationResult(String flagKey, String variationKey, String value, EvaluationReason reason,
 		String matchedStrategyId, String matchedRuleId, boolean includedInExperiment) {
 
-	public EvaluationResult(String flagKey, String variationKey, String value, EvaluationReason reason,
-			String matchedStrategyId, String matchedRuleId) {
-		this(flagKey, variationKey, value, reason, matchedStrategyId, matchedRuleId, true);
-	}
-
-	public EvaluationResult(String flagKey, String variationKey, String value, EvaluationReason reason,
-			String matchedStrategyId) {
-		this(flagKey, variationKey, value, reason, matchedStrategyId, null, true);
-	}
-
 	public static EvaluationResult strategyMatch(String flagKey, String variationKey, String value, String strategyId) {
 		return new EvaluationResult(flagKey, variationKey, value, EvaluationReason.STRATEGY_MATCH, strategyId, null, true);
 	}
@@ -44,7 +34,7 @@ public record EvaluationResult(String flagKey, String variationKey, String value
 	}
 
 	public static EvaluationResult progressiveRollout(String flagKey, String variationKey, String value, String strategyId) {
-		return new EvaluationResult(flagKey, variationKey, value, EvaluationReason.PROGRESSIVE_ROLLOUT, strategyId);
+		return new EvaluationResult(flagKey, variationKey, value, EvaluationReason.PROGRESSIVE_ROLLOUT, strategyId, null, true);
 	}
 
 	public static EvaluationResult of(String flagKey, String variationKey, String value, EvaluationReason reason) {
