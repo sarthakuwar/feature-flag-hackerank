@@ -1,0 +1,21 @@
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_3eb9b6696efabc::t_717ae7e9689f8d 37
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceTest.java
+  s_3eb9b6696efabc::t_25d51b6d50f47d 162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7bda9db7fac3fd4b35555b505057eed1bbfd468a",
+  "prompts": {},
+  "sessions": {
+    "s_3eb9b6696efabc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6817b363-dc63-4f4c-b23e-7785dca08c44",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
