@@ -1,0 +1,27 @@
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_3eb9b6696efabc::t_bd8444d951320f 25-26
+  s_3eb9b6696efabc::t_717ae7e9689f8d 18,37
+  s_3eb9b6696efabc::t_2496fe594f5826 15-17
+  s_3eb9b6696efabc::t_313808092cc29b 19-24
+  s_3eb9b6696efabc::t_2d800203512a33 36
+  s_3eb9b6696efabc::t_21359a223537bd 38-40
+  s_3eb9b6696efabc::t_a2b4e05011aa2a 1-14,41-43
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceTest.java
+  s_3eb9b6696efabc::t_25d51b6d50f47d 162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "35778631da1837abe6231f9a32c6b50c355739c9",
+  "prompts": {},
+  "sessions": {
+    "s_3eb9b6696efabc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6817b363-dc63-4f4c-b23e-7785dca08c44",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
