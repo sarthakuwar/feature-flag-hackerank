@@ -1,0 +1,91 @@
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutService.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-323
+backend/src/main/java/com/featureflag/flags/audit/AuditAction.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 10-13
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 37-40
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutServiceTest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-659
+backend/src/main/java/com/featureflag/flags/rollout/dto/ProgressiveRolloutResponse.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-32
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 6,29,49-50,57,87-92,103-108,150-161
+  s_3eb9b6696efabc::t_00120047b6f788 43-44,46,48,51-53,56,58-61,63
+  s_3eb9b6696efabc::t_ba3d6c8df41c64 30-34
+backend/src/main/java/com/featureflag/flags/RolloutStatus.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-7
+backend/src/test/java/com/featureflag/shared/MutableClock.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-40
+backend/src/main/java/com/featureflag/flags/rollout/RolloutSchedule.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-142
+backend/src/main/java/com/featureflag/flags/rollout/dto/StartProgressiveRolloutRequest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-13
+backend/src/test/java/com/featureflag/flags/FlagEvaluationProgressiveRolloutTest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-360
+backend/src/main/java/com/featureflag/flags/EvaluationReason.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 10
+backend/src/main/java/com/featureflag/flags/experiment/ExperimentService.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 79-80,203-204,226-233
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutSchedulerTest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-35
+backend/src/test/java/com/featureflag/flags/targeting/TargetingProgressiveRolloutIT.java
+  s_3eb9b6696efabc::t_81d8848f59f61c 1-151
+backend/src/test/java/com/featureflag/flags/ProgressiveRolloutTest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-107
+backend/src/main/java/com/featureflag/flags/rollout/dto/StopProgressiveRolloutRequest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-5
+backend/src/main/java/com/featureflag/flags/ProgressiveRollout.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-218
+backend/src/main/java/com/featureflag/flags/rollout/dto/RolloutStageRequest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-4
+backend/src/main/java/com/featureflag/flags/EnvironmentConfig.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 6,29-31,81-102
+backend/src/test/java/com/featureflag/flags/rollout/RolloutFixtures.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-158
+backend/src/test/java/com/featureflag/flags/rollout/RolloutScheduleTest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-242
+backend/src/main/java/com/featureflag/shared/SchedulingConfig.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-13
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceProgressiveRolloutTest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-119
+backend/src/test/java/com/featureflag/flags/FlagServiceProgressiveRolloutTest.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-246
+backend/src/main/java/com/featureflag/shared/ClockConfig.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-19
+backend/src/test/resources/application-test.properties
+  s_3eb9b6696efabc::t_20c3c0164ec71d 5
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutControllerIT.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-794
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutController.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-78
+backend/src/main/java/com/featureflag/flags/RolloutStage.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-36
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutScheduler.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-28
+backend/src/main/java/com/featureflag/flags/FlagSeeder.java
+  s_3eb9b6696efabc::t_a60d999fbfe556 85
+  s_3eb9b6696efabc::t_d251612928be2a 23-24
+  s_3eb9b6696efabc::t_20c3c0164ec71d 78-79,86,100,205-213
+backend/src/test/java/com/featureflag/flags/FlagSeederProgressiveRolloutIT.java
+  s_3eb9b6696efabc::t_20c3c0164ec71d 1-88
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_3eb9b6696efabc::t_25aaca51123b64 163,165,168-169
+  s_3eb9b6696efabc::t_3e5d1ee3ec41e4 440
+  s_3eb9b6696efabc::t_20c3c0164ec71d 10,156-161,187-228,441-442
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2f080ac7d548bb75973cfa91bf11e45c53255f8f",
+  "prompts": {},
+  "sessions": {
+    "s_3eb9b6696efabc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6817b363-dc63-4f4c-b23e-7785dca08c44",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
