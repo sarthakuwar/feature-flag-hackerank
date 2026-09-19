@@ -4,6 +4,15 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import com.featureflag.flags.targeting.IndividualTarget;
+import com.featureflag.flags.targeting.TargetingRule;
+
+/**
+ * Evaluation precedence within an enabled environment: {@link #individualTargets}, then {@link
+ * #rules} in list order (skipping disabled ones), then the legacy {@link #strategies} (rollouts and
+ * experiments), then {@link #offVariationKey}. Environments written before targeting rules existed
+ * simply have empty rule/target lists and evaluate exactly as they always did.
+ */
 public class EnvironmentConfig {
 
 	private boolean enabled;
@@ -11,6 +20,10 @@ public class EnvironmentConfig {
 	private String offVariationKey;
 
 	private List<Strategy> strategies = new ArrayList<>();
+
+	private List<IndividualTarget> individualTargets = new ArrayList<>();
+
+	private List<TargetingRule> rules = new ArrayList<>();
 
 	public EnvironmentConfig() {
 	}
@@ -43,6 +56,22 @@ public class EnvironmentConfig {
 
 	public void setStrategies(List<Strategy> strategies) {
 		this.strategies = strategies;
+	}
+
+	public List<IndividualTarget> getIndividualTargets() {
+		return individualTargets;
+	}
+
+	public void setIndividualTargets(List<IndividualTarget> individualTargets) {
+		this.individualTargets = individualTargets;
+	}
+
+	public List<TargetingRule> getRules() {
+		return rules;
+	}
+
+	public void setRules(List<TargetingRule> rules) {
+		this.rules = rules;
 	}
 
 	public List<Strategy> orderedStrategies() {

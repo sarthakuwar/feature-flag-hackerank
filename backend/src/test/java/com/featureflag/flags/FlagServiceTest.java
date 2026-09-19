@@ -34,6 +34,8 @@ import com.featureflag.flags.dto.StrategyRequest;
 import com.featureflag.flags.dto.VariationCreateRequest;
 import com.featureflag.flags.dto.VariationRequest;
 import com.featureflag.flags.dto.VariationUpdateRequest;
+import com.featureflag.flags.targeting.IndividualTarget;
+import com.featureflag.flags.targeting.TargetingRule;
 import com.featureflag.shared.ApiException;
 import com.featureflag.shared.ValidationException;
 
@@ -247,6 +249,63 @@ class FlagServiceTest {
 
 		assertThat(saved.getVariations()).extracting(Variation::getKey).containsExactly("red", "blue");
 		verify(auditService).record("multi-flag", AuditAction.UPDATE, "changer", "Removed variation 'green'.");
+	}
+
+	@Test
+	void updateEnvironmentKeepsTargetingRulesAndIndividualTargetsThatItDoesNotOwn() {
+		Flag flag = existingBooleanFlag("existing-flag");
+		TargetingRule rule = new TargetingRule();
+		rule.setId("keep-me");
+		rule.setServedVariationKey("on");
+		IndividualTarget target = new IndividualTarget("user", "on", java.util.Set.of("vip"));
+		flag.getEnvironments().get(EnvironmentKey.PRODUCTION).getRules().add(rule);
+		flag.getEnvironments().get(EnvironmentKey.PRODUCTION).getIndividualTargets().add(target);
+		when(flagRepository.findByKey("existing-flag")).thenReturn(Optional.of(flag));
+
+		Flag saved = flagService.updateEnvironment("existing-flag", EnvironmentKey.PRODUCTION,
+				new EnvironmentConfigRequest(true, "off", List.of(rolloutStrategy(50, "on")), "changer"));
+
+		EnvironmentConfig config = saved.getEnvironments().get(EnvironmentKey.PRODUCTION);
+		assertThat(config.isEnabled()).isTrue();
+		assertThat(config.getStrategies()).hasSize(1);
+		assertThat(config.getRules()).containsExactly(rule);
+		assertThat(config.getIndividualTargets()).containsExactly(target);
+	}
+
+	@Test
+	void removeVariationIsBlockedWhileATargetingRuleOrIndividualTargetStillServesIt() {
+		Flag flag = existingMultivariateFlag("multi-flag");
+		flag.getVariations().add(new Variation("green", "Green", "green"));
+		flag.getVariations().add(new Variation("gold", "Gold", "gold"));
+		TargetingRule fixed = new TargetingRule();
+		fixed.setId("serves-green");
+		fixed.setServedVariationKey("green");
+		flag.getEnvironments().get(EnvironmentKey.STAGING).getRules().add(fixed);
+		flag.getEnvironments().get(EnvironmentKey.PRODUCTION).getIndividualTargets()
+				.add(new IndividualTarget("user", "gold", java.util.Set.of("vip")));
+		when(flagRepository.findByKey("multi-flag")).thenReturn(Optional.of(flag));
+
+		assertThatThrownBy(() -> flagService.removeVariation("multi-flag", "green", "changer")).isInstanceOf(ValidationException.class);
+		assertThatThrownBy(() -> flagService.removeVariation("multi-flag", "gold", "changer")).isInstanceOf(ValidationException.class);
+		verify(flagRepository, never()).save(any());
+	}
+
+	@Test
+	void removeVariationIsBlockedWhileARuleRolloutGivesItATrafficShareButNotWhenItsShareIsZero() {
+		Flag flag = existingMultivariateFlag("multi-flag");
+		flag.getVariations().add(new Variation("green", "Green", "green"));
+		flag.getVariations().add(new Variation("gold", "Gold", "gold"));
+		TargetingRule rollout = new TargetingRule();
+		rollout.setId("rollout");
+		rollout.setRolloutWeights(new java.util.LinkedHashMap<>(Map.of("red", 60, "green", 40, "gold", 0)));
+		flag.getEnvironments().get(EnvironmentKey.PRODUCTION).getRules().add(rollout);
+		when(flagRepository.findByKey("multi-flag")).thenReturn(Optional.of(flag));
+
+		assertThatThrownBy(() -> flagService.removeVariation("multi-flag", "green", "changer")).isInstanceOf(ValidationException.class);
+
+		Flag saved = flagService.removeVariation("multi-flag", "gold", "changer");
+
+		assertThat(saved.getVariations()).extracting(Variation::getKey).doesNotContain("gold");
 	}
 
 	@Test

@@ -154,6 +154,15 @@ public class FlagService {
 
 		boolean wasEnabled = flag.getEnvironments().containsKey(environment) && flag.getEnvironments().get(environment).isEnabled();
 		EnvironmentConfig config = new EnvironmentConfig(request.enabled(), request.offVariationKey(), strategies);
+		EnvironmentConfig previous = flag.getEnvironments().get(environment);
+
+		if (previous != null) {
+			// This endpoint owns on/off, the off variation and legacy strategies; targeting rules and
+			// individual targets have their own endpoints and must survive an unrelated save here.
+			config.setRules(previous.getRules());
+			config.setIndividualTargets(previous.getIndividualTargets());
+		}
+
 		flag.getEnvironments().put(environment, config);
 
 		Flag saved = flagRepository.save(flag);
@@ -378,7 +387,9 @@ public class FlagService {
 
 		flag.getEnvironments().forEach((environment, config) -> {
 			boolean referenced = variationKey.equals(config.getOffVariationKey())
-					|| config.getStrategies().stream().anyMatch(strategy -> variationKey.equals(strategy.getServedVariationKey()));
+					|| config.getStrategies().stream().anyMatch(strategy -> variationKey.equals(strategy.getServedVariationKey()))
+					|| config.getIndividualTargets().stream().anyMatch(target -> variationKey.equals(target.getVariationKey()))
+					|| config.getRules().stream().anyMatch(rule -> rule.referencedVariationKeys().contains(variationKey));
 
 			if (referenced) {
 				referencing.add(environment.name());

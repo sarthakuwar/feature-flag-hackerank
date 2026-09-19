@@ -27,6 +27,9 @@ public class ConversionEvent {
 
 	private Double value;
 
+	/** Inherited from the user's latest impression of this flag; see {@link ImpressionEvent#isIncludedInExperiment()}. */
+	private boolean includedInExperiment = true;
+
 	@CreatedDate
 	private Instant occurredAt;
 
@@ -41,6 +44,12 @@ public class ConversionEvent {
 		this.userId = userId;
 		this.eventType = eventType;
 		this.value = value;
+	}
+
+	public ConversionEvent(String flagKey, EnvironmentKey environment, String variationKey, String userId, String eventType,
+			Double value, boolean includedInExperiment) {
+		this(flagKey, environment, variationKey, userId, eventType, value);
+		this.includedInExperiment = includedInExperiment;
 	}
 
 	public String getId() {
@@ -97,6 +106,14 @@ public class ConversionEvent {
 
 	public void setValue(Double value) {
 		this.value = value;
+	}
+
+	public boolean isIncludedInExperiment() {
+		return includedInExperiment;
+	}
+
+	public void setIncludedInExperiment(boolean includedInExperiment) {
+		this.includedInExperiment = includedInExperiment;
 	}
 
 	public Instant getOccurredAt() {

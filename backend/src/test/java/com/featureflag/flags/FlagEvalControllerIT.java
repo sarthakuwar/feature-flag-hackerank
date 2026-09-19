@@ -138,42 +138,31 @@ class FlagEvalControllerIT {
 	}
 
 	/**
-	 * Impression recording is @Async (see MetricsService.recordImpression), so the write may land
-	 * a moment after the HTTP response comes back; poll with a bounded retry rather than asserting
-	 * immediately, mirroring FlagStreamControllerIT's approach to another async side effect (SSE).
+	 * Impression recording is synchronous (see MetricsService.recordImpression), so the impression is
+	 * already stored when the HTTP response comes back: asserted immediately, deliberately with no
+	 * polling, because a conversion sent right after an evaluation depends on exactly that.
 	 */
 	@Test
-	void evaluatingASingleFlagAsynchronouslyRecordsAnImpression() throws InterruptedException {
+	void evaluatingASingleFlagRecordsTheImpressionBeforeTheResponseReturns() {
 		createFlag("impression-flag");
 
 		restTemplate.postForEntity("/api/v1/eval/PRODUCTION/impression-flag", new EvaluationRequest("user-1", Map.of()),
 				Map.class);
 
-		long deadline = System.currentTimeMillis() + 5000;
-		List<ImpressionEvent> events = List.of();
-
-		while (System.currentTimeMillis() < deadline) {
-			events = impressionRepository.findByFlagKeyAndEnvironment("impression-flag", EnvironmentKey.PRODUCTION);
-
-			if (!events.isEmpty()) {
-				break;
-			}
-
-			Thread.sleep(100);
-		}
+		List<ImpressionEvent> events = impressionRepository.findByFlagKeyAndEnvironment("impression-flag", EnvironmentKey.PRODUCTION);
 
 		assertThat(events).hasSize(1);
 		assertThat(events.get(0).getUserId()).isEqualTo("user-1");
 		assertThat(events.get(0).getVariationKey()).isEqualTo("off");
+		assertThat(events.get(0).isIncludedInExperiment()).isTrue();
 	}
 
 	/** Bulk-evaluate isn't "one SDK evaluating one flag for one user," so it never emits impressions. */
 	@Test
-	void bulkEvaluationNeverRecordsImpressions() throws InterruptedException {
+	void bulkEvaluationNeverRecordsImpressions() {
 		createFlag("no-impression-flag");
 
 		restTemplate.postForEntity("/api/v1/eval/PRODUCTION", new EvaluationRequest("user-1", Map.of()), Map.class);
-		Thread.sleep(500);
 
 		assertThat(impressionRepository.findByFlagKeyAndEnvironment("no-impression-flag", EnvironmentKey.PRODUCTION)).isEmpty();
 	}

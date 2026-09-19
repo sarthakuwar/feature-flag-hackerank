@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import com.featureflag.flags.BanditAlgorithm;
@@ -52,15 +52,20 @@ public class MetricsService {
 	}
 
 	/**
-	 * Fire-and-forget: this is the "the SDK emits an impression when it calls isEnabled/getVariant"
-	 * telemetry path. Never allowed to affect the caller - failures are swallowed and logged, not
-	 * thrown, since a lost impression is not worth failing a flag evaluation over.
+	 * The "the SDK emits an impression when it calls isEnabled/getVariant" telemetry path. Synchronous
+	 * on purpose: the impression is durable before the evaluation response returns, so a conversion
+	 * the same user sends right afterwards always finds it and inherits the correct experiment
+	 * inclusion (see {@link #isUserInExperiment}); an async write left a window where it would not.
+	 * The price is one MongoDB write on the evaluation request, which is why this is called after the
+	 * result is already computed and never inside {@code evaluate()}, which stays pure. It still can
+	 * never break the caller - failures are swallowed and logged, not thrown, since a lost impression
+	 * is not worth failing a flag evaluation over.
 	 */
-	@Async
 	public void recordImpression(String flagKey, EnvironmentKey environment, String variationKey, String userId, int bucket,
-			EvaluationReason reason) {
+			EvaluationReason reason, boolean includedInExperiment) {
 		try {
-			impressionRepository.save(new ImpressionEvent(flagKey, environment, variationKey, userId, bucket, reason));
+			impressionRepository.save(new ImpressionEvent(flagKey, environment, variationKey, userId, bucket, reason,
+					includedInExperiment));
 		} catch (RuntimeException exception) {
 			System.err.println("Failed to record impression for flag '" + flagKey + "': " + exception);
 		}
@@ -103,7 +108,21 @@ public class MetricsService {
 		}
 
 		return conversionRepository.save(new ConversionEvent(request.flagKey(), request.environment(), request.variationKey(),
-				request.userId(), request.eventType(), request.value()));
+				request.userId(), request.eventType(), request.value(), isUserInExperiment(request)));
+	}
+
+	/**
+	 * A conversion counts toward the experiment only if the user's most recent impression of this flag
+	 * did. Without this, conversions from hand-picked users would still land in the numerator while
+	 * their impressions were kept out of the denominator, inflating every conversion rate. A user with
+	 * no recorded impression yet (an event arriving before, or without, an evaluation) counts as
+	 * included, which is how conversions behaved before targeting existed.
+	 */
+	private boolean isUserInExperiment(ConversionRequest request) {
+		return impressionRepository
+				.findFirstByFlagKeyAndEnvironmentAndUserIdOrderByOccurredAtDesc(request.flagKey(), request.environment(),
+						request.userId())
+				.map(ImpressionEvent::isIncludedInExperiment).orElse(true);
 	}
 
 	public ExperimentMetricsResponse metrics(String flagKey, EnvironmentKey environment, String eventTypeFilter) {
@@ -132,7 +151,8 @@ public class MetricsService {
 
 		return new ExperimentMetricsResponse(flagKey, environment, variationMetrics,
 				experimentStrategy != null ? experimentStrategy.getBanditAlgorithm() : BanditAlgorithm.NONE,
-				experimentStrategy != null ? experimentStrategy.getEpsilon() : null);
+				experimentStrategy != null ? experimentStrategy.getEpsilon() : null,
+				countExcludedImpressions(flagKey, environment));
 	}
 
 	private Strategy findExperimentStrategy(EnvironmentConfig environmentConfig) {
@@ -144,7 +164,9 @@ public class MetricsService {
 
 	private Map<String, Long> countByVariation(String collectionName, String flagKey, EnvironmentKey environment,
 			String eventTypeFilter) {
-		Criteria criteria = Criteria.where("flagKey").is(flagKey).and("environment").is(environment);
+		// "not false" rather than "true" so documents written before the field existed still count.
+		Criteria criteria = Criteria.where("flagKey").is(flagKey).and("environment").is(environment).and("includedInExperiment")
+				.ne(false);
 
 		if (eventTypeFilter != null && !eventTypeFilter.isBlank()) {
 			criteria = criteria.and("eventType").is(eventTypeFilter);
@@ -159,6 +181,13 @@ public class MetricsService {
 		results.getMappedResults().forEach(result -> counts.put(result.id(), result.count()));
 
 		return counts;
+	}
+
+	private long countExcludedImpressions(String flagKey, EnvironmentKey environment) {
+		Criteria criteria = Criteria.where("flagKey").is(flagKey).and("environment").is(environment).and("includedInExperiment")
+				.is(false);
+
+		return mongoTemplate.count(new Query(criteria), "flag_impression_events");
 	}
 
 	private record VariationCount(String id, long count) {

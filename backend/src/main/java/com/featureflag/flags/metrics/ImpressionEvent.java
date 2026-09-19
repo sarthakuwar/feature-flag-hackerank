@@ -28,6 +28,13 @@ public class ImpressionEvent {
 
 	private EvaluationReason reason;
 
+	/**
+	 * False when the user was hand-picked (individual target, or a rule not opted into the experiment)
+	 * rather than randomly assigned. Defaults to true so documents written before this field existed
+	 * keep counting exactly as they always did.
+	 */
+	private boolean includedInExperiment = true;
+
 	@CreatedDate
 	private Instant occurredAt;
 
@@ -42,6 +49,12 @@ public class ImpressionEvent {
 		this.userId = userId;
 		this.bucket = bucket;
 		this.reason = reason;
+	}
+
+	public ImpressionEvent(String flagKey, EnvironmentKey environment, String variationKey, String userId, int bucket,
+			EvaluationReason reason, boolean includedInExperiment) {
+		this(flagKey, environment, variationKey, userId, bucket, reason);
+		this.includedInExperiment = includedInExperiment;
 	}
 
 	public String getId() {
@@ -98,6 +111,14 @@ public class ImpressionEvent {
 
 	public void setReason(EvaluationReason reason) {
 		this.reason = reason;
+	}
+
+	public boolean isIncludedInExperiment() {
+		return includedInExperiment;
+	}
+
+	public void setIncludedInExperiment(boolean includedInExperiment) {
+		this.includedInExperiment = includedInExperiment;
 	}
 
 	public Instant getOccurredAt() {

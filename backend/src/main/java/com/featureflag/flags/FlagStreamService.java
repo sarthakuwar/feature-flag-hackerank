@@ -39,18 +39,34 @@ public class FlagStreamService {
 	}
 
 	public void publishFlagChanged(EnvironmentKey environment, String flagKey, String action) {
+		publish(environment, "flag-changed", Map.of("flagKey", flagKey, "environment", environment.name(), "action", action,
+				"changedAt", Instant.now().toString()));
+	}
+
+	/** Segments are environment-scoped, so only that environment's subscribers need to refresh their segment store. */
+	public void publishSegmentChanged(EnvironmentKey environment, String segmentKey, String action) {
+		publish(environment, "segment-changed", Map.of("segmentKey", segmentKey, "environment", environment.name(),
+				"action", action, "changedAt", Instant.now().toString()));
+	}
+
+	/** The mobile application registry is global, so every environment's subscribers hear about it. */
+	public void publishApplicationChanged(String applicationKey, String action) {
+		for (EnvironmentKey environment : EnvironmentKey.values()) {
+			publish(environment, "application-changed", Map.of("applicationKey", applicationKey, "environment",
+					environment.name(), "action", action, "changedAt", Instant.now().toString()));
+		}
+	}
+
+	private void publish(EnvironmentKey environment, String eventName, Map<String, Object> payload) {
 		List<SseEmitter> subscribers = subscribersByEnvironment.get(environment);
 
 		if (subscribers == null || subscribers.isEmpty()) {
 			return;
 		}
 
-		Map<String, Object> payload = Map.of("flagKey", flagKey, "environment", environment.name(), "action", action,
-				"changedAt", Instant.now().toString());
-
 		for (SseEmitter emitter : subscribers) {
 			try {
-				emitter.send(SseEmitter.event().name("flag-changed").data(payload));
+				emitter.send(SseEmitter.event().name(eventName).data(payload));
 			} catch (IOException | IllegalStateException exception) {
 				subscribers.remove(emitter);
 			}

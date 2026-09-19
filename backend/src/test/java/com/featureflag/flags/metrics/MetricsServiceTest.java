@@ -1,9 +1,11 @@
 package com.featureflag.flags.metrics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,12 +18,14 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 import com.featureflag.flags.EnvironmentConfig;
 import com.featureflag.flags.EnvironmentKey;
+import com.featureflag.flags.EvaluationReason;
 import com.featureflag.flags.Flag;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagLifecycle;
@@ -113,6 +117,67 @@ class MetricsServiceTest {
 		assertThat(saved.getVariationKey()).isEqualTo("a");
 		assertThat(saved.getEventType()).isEqualTo("purchase");
 		assertThat(saved.getValue()).isEqualTo(9.99);
+	}
+
+	@Test
+	void recordImpressionStoresWhetherTheUserCountsTowardTheExperiment() {
+		ArgumentCaptor<ImpressionEvent> captor = ArgumentCaptor.forClass(ImpressionEvent.class);
+
+		metricsService.recordImpression("flag-a", EnvironmentKey.PRODUCTION, "a", "user-1", 5, EvaluationReason.INDIVIDUAL_TARGET, false);
+		metricsService.recordImpression("flag-a", EnvironmentKey.PRODUCTION, "a", "user-2", 6, EvaluationReason.EXPERIMENT_ASSIGNED, true);
+
+		verify(impressionRepository, times(2)).save(captor.capture());
+		assertThat(captor.getAllValues()).extracting(ImpressionEvent::isIncludedInExperiment).containsExactly(false, true);
+	}
+
+	@Test
+	void aFailedImpressionWriteNeverPropagatesToTheEvaluationThatTriggeredIt() {
+		when(impressionRepository.save(any(ImpressionEvent.class))).thenThrow(new IllegalStateException("mongo is down"));
+
+		assertThatCode(() -> metricsService.recordImpression("flag-a", EnvironmentKey.PRODUCTION, "a", "user-1", 5,
+				EvaluationReason.EXPERIMENT_ASSIGNED, true)).doesNotThrowAnyException();
+		verify(impressionRepository).save(any(ImpressionEvent.class));
+	}
+
+	@Test
+	void aConversionFromAUserWhoseLatestImpressionWasExcludedIsExcludedToo() {
+		stubValidFlag();
+		when(impressionRepository.findFirstByFlagKeyAndEnvironmentAndUserIdOrderByOccurredAtDesc("flag-a", EnvironmentKey.PRODUCTION, "vip"))
+				.thenReturn(Optional.of(new ImpressionEvent("flag-a", EnvironmentKey.PRODUCTION, "a", "vip", 1,
+						EvaluationReason.INDIVIDUAL_TARGET, false)));
+
+		ConversionEvent saved = metricsService.recordConversion(
+				new ConversionRequest("flag-a", EnvironmentKey.PRODUCTION, "a", "vip", "purchase", null));
+
+		assertThat(saved.isIncludedInExperiment()).isFalse();
+	}
+
+	@Test
+	void aConversionFromAUserWhoseLatestImpressionWasIncludedIsIncluded() {
+		stubValidFlag();
+		when(impressionRepository.findFirstByFlagKeyAndEnvironmentAndUserIdOrderByOccurredAtDesc("flag-a", EnvironmentKey.PRODUCTION, "organic"))
+				.thenReturn(Optional.of(new ImpressionEvent("flag-a", EnvironmentKey.PRODUCTION, "a", "organic", 1,
+						EvaluationReason.EXPERIMENT_ASSIGNED, true)));
+
+		ConversionEvent saved = metricsService.recordConversion(
+				new ConversionRequest("flag-a", EnvironmentKey.PRODUCTION, "a", "organic", "purchase", null));
+
+		assertThat(saved.isIncludedInExperiment()).isTrue();
+	}
+
+	@Test
+	void aConversionFromAUserWithNoImpressionYetStillCountsAsBeforeTargetingExisted() {
+		stubValidFlag();
+
+		ConversionEvent saved = metricsService.recordConversion(
+				new ConversionRequest("flag-a", EnvironmentKey.PRODUCTION, "a", "unseen", "purchase", null));
+
+		assertThat(saved.isIncludedInExperiment()).isTrue();
+	}
+
+	private void stubValidFlag() {
+		when(flagCacheService.get("flag-a")).thenReturn(Optional.of(flagWithVariations("flag-a", "a", "b")));
+		when(conversionRepository.save(any(ConversionEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
 	}
 
 	private Flag flagWithVariations(String key, String... variationKeys) {

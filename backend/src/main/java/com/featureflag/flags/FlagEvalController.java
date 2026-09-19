@@ -1,5 +1,6 @@
 package com.featureflag.flags;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,8 +47,10 @@ public class FlagEvalController {
 
 	/**
 	 * The one route that stands in for a real SDK's isEnabled/getVariant call, so it's the only one
-	 * that emits an impression - fired async (see MetricsService.recordImpression) after the result
-	 * is already computed, so telemetry never adds latency or a failure mode to evaluation itself.
+	 * that emits an impression - written synchronously (see MetricsService.recordImpression) after
+	 * the result is already computed, so the impression is durable by the time the caller has its
+	 * answer and a conversion sent right after it is attributed correctly. The pure evaluation itself
+	 * still does no I/O, and a failed write is swallowed rather than failing the evaluation.
 	 * Bulk-evaluate and bootstrap don't emit; neither is "one SDK evaluating one flag for one user."
 	 */
 	@PostMapping("/{environment}/{key}")
@@ -60,7 +63,8 @@ public class FlagEvalController {
 		UserContext userContext = userContextFrom(request);
 		EvaluationResult result = flagEvaluationService.evaluate(flag, environment, userContext);
 		int bucket = flagEvaluationService.bucketFor(key, userContext);
-		metricsService.recordImpression(key, environment, result.variationKey(), userContext.userId(), bucket, result.reason());
+		metricsService.recordImpression(key, environment, result.variationKey(), userContext.userId(), bucket, result.reason(),
+				result.includedInExperiment());
 
 		return ResponseEntity.ok(Map.of("data", result));
 	}
@@ -88,6 +92,13 @@ public class FlagEvalController {
 	}
 
 	private UserContext userContextFrom(EvaluationRequest request) {
-		return request == null ? UserContext.anonymous(null) : new UserContext(request.userId(), request.attributes());
+		if (request == null) {
+			return UserContext.anonymous(null);
+		}
+
+		Map<String, ContextEntry> contexts = new LinkedHashMap<>();
+		request.contexts().forEach((kind, context) -> contexts.put(kind, new ContextEntry(context.key(), context.attributes())));
+
+		return new UserContext(request.userId(), request.attributes(), contexts);
 	}
 }

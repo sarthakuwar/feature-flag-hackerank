@@ -20,6 +20,20 @@ import com.featureflag.flags.metrics.ConversionEvent;
 import com.featureflag.flags.metrics.ConversionRepository;
 import com.featureflag.flags.metrics.ImpressionEvent;
 import com.featureflag.flags.metrics.ImpressionRepository;
+import com.featureflag.flags.targeting.BulkOperation;
+import com.featureflag.flags.targeting.ClauseOperator;
+import com.featureflag.flags.targeting.MobileApplicationRepository;
+import com.featureflag.flags.targeting.MobileApplicationService;
+import com.featureflag.flags.targeting.SegmentRepository;
+import com.featureflag.flags.targeting.SegmentService;
+import com.featureflag.flags.targeting.TargetingCacheService;
+import com.featureflag.flags.targeting.TargetingService;
+import com.featureflag.flags.targeting.dto.BulkTargetRequest;
+import com.featureflag.flags.targeting.dto.ClauseRequest;
+import com.featureflag.flags.targeting.dto.MobileApplicationRequest;
+import com.featureflag.flags.targeting.dto.SegmentCreateRequest;
+import com.featureflag.flags.targeting.dto.SegmentRuleRequest;
+import com.featureflag.flags.targeting.dto.TargetingRuleRequest;
 
 /**
  * backend/build.gradle can't carry a Gradle "seed" task (it's a readonly_paths entry and has no
@@ -47,9 +61,24 @@ public class FlagSeeder implements ApplicationRunner {
 
 	private final ExperimentService experimentService;
 
+	private final SegmentRepository segmentRepository;
+
+	private final MobileApplicationRepository mobileApplicationRepository;
+
+	private final SegmentService segmentService;
+
+	private final MobileApplicationService mobileApplicationService;
+
+	private final TargetingService targetingService;
+
+	private final TargetingCacheService targetingCacheService;
+
 	public FlagSeeder(FlagRepository flagRepository, AuditRepository auditRepository, FlagService flagService,
 			FlagCacheService flagCacheService, ImpressionRepository impressionRepository,
-			ConversionRepository conversionRepository, ExperimentService experimentService) {
+			ConversionRepository conversionRepository, ExperimentService experimentService,
+			SegmentRepository segmentRepository, MobileApplicationRepository mobileApplicationRepository,
+			SegmentService segmentService, MobileApplicationService mobileApplicationService,
+			TargetingService targetingService, TargetingCacheService targetingCacheService) {
 		this.flagRepository = flagRepository;
 		this.auditRepository = auditRepository;
 		this.flagService = flagService;
@@ -57,6 +86,12 @@ public class FlagSeeder implements ApplicationRunner {
 		this.impressionRepository = impressionRepository;
 		this.conversionRepository = conversionRepository;
 		this.experimentService = experimentService;
+		this.segmentRepository = segmentRepository;
+		this.mobileApplicationRepository = mobileApplicationRepository;
+		this.segmentService = segmentService;
+		this.mobileApplicationService = mobileApplicationService;
+		this.targetingService = targetingService;
+		this.targetingCacheService = targetingCacheService;
 	}
 
 	@Override
@@ -65,6 +100,12 @@ public class FlagSeeder implements ApplicationRunner {
 		auditRepository.deleteAll();
 		impressionRepository.deleteAll();
 		conversionRepository.deleteAll();
+		segmentRepository.deleteAll();
+		mobileApplicationRepository.deleteAll();
+		targetingCacheService.load();
+
+		seedMobileApplications();
+		seedSegments();
 
 		seedNewCheckoutFlow();
 		seedCheckoutAnalyticsDashboard();
@@ -72,8 +113,10 @@ public class FlagSeeder implements ApplicationRunner {
 		seedBetaDashboardAccess();
 		seedDarkModeDefault();
 		seedExperimentalAiSummaries();
+		seedTargetingRules();
 
 		flagCacheService.load();
+		targetingCacheService.load();
 	}
 
 	private void seedNewCheckoutFlow() {
@@ -174,6 +217,77 @@ public class FlagSeeder implements ApplicationRunner {
 		seedEvents("experimental-ai-summaries", EnvironmentKey.STAGING, "concise", 60, 10, "read-to-end");
 		seedEvents("experimental-ai-summaries", EnvironmentKey.STAGING, "detailed", 50, 9, "read-to-end");
 		experimentService.reallocateNow("experimental-ai-summaries", EnvironmentKey.STAGING, "seed");
+	}
+
+	/** The mobile registry behind "app version supported / unsupported" targeting. */
+	private void seedMobileApplications() {
+		mobileApplicationService.create(new MobileApplicationRequest("com.featureflag.mobile", "FeatureFlag Mobile", "2.4.0", "seed"));
+		mobileApplicationService.create(new MobileApplicationRequest("com.featureflag.tablet", "FeatureFlag Tablet", "1.2.0", "seed"));
+	}
+
+	/**
+	 * Segments are environment-scoped. Production gets the full set (explicit members, rule-based
+	 * membership, an exclusion, and a non-user "organization" segment); staging gets a rule-only variant of
+	 * beta-testers to show the same key meaning a different audience per environment.
+	 */
+	private void seedSegments() {
+		ClauseRequest companyEmail = new ClauseRequest("user", "email", ClauseOperator.ENDS_WITH, List.of("@featureflag.dev"), false);
+
+		segmentService.create(EnvironmentKey.PRODUCTION, new SegmentCreateRequest("beta-testers", "Beta testers",
+				"Invited users and company staff trying features early.", null, List.of("user-1001", "user-1002", "user-1003"),
+				List.of(), List.of(new SegmentRuleRequest(null, "Company email", List.of(companyEmail))), "seed"));
+
+		segmentService.create(EnvironmentKey.PRODUCTION, new SegmentCreateRequest("enterprise-customers", "Enterprise customers",
+				"Accounts on the enterprise plan, minus churned ones.", null, List.of(), List.of("user-9999"),
+				List.of(new SegmentRuleRequest(null, "Enterprise plan",
+						List.of(new ClauseRequest("user", "plan", ClauseOperator.IN, List.of("enterprise"), false)))),
+				"seed"));
+
+		segmentService.create(EnvironmentKey.PRODUCTION, new SegmentCreateRequest("mobile-beta", "Mobile beta",
+				"Testers enrolled in the mobile beta program.", null, List.of("user-2001", "user-2002", "user-2003"), List.of(),
+				List.of(), "seed"));
+
+		segmentService.create(EnvironmentKey.PRODUCTION, new SegmentCreateRequest("internal-orgs", "Internal organizations",
+				"Organizations owned by the company or its launch partners.", "organization",
+				List.of("org-featureflag", "org-partner-sandbox"), List.of(), List.of(), "seed"));
+
+		segmentService.create(EnvironmentKey.STAGING, new SegmentCreateRequest("beta-testers", "Beta testers",
+				"Everyone with a company email; staging has no invite list.", null, List.of(), List.of(),
+				List.of(new SegmentRuleRequest(null, "Company email", List.of(companyEmail))), "seed"));
+	}
+
+	/**
+	 * Targeting rules layered over the seeded flags. Individual targets and rules sit above each flag's
+	 * strategies in evaluation order, so they override the rollout and experiment configured underneath.
+	 */
+	private void seedTargetingRules() {
+		ClauseRequest inBetaTesters = new ClauseRequest("user", null, ClauseOperator.IN_SEGMENT, List.of("beta-testers"), false);
+
+		targetingService.createRule("new-checkout-flow", EnvironmentKey.PRODUCTION, new TargetingRuleRequest(
+				"Beta testers get the new checkout", null, List.of(inBetaTesters), "on", null, null, "seed"));
+		targetingService.createRule("new-checkout-flow", EnvironmentKey.PRODUCTION, new TargetingRuleRequest(
+				"Germany holdout (paused)", false,
+				List.of(new ClauseRequest("user", "country", ClauseOperator.IN, List.of("DE"), false)), "off", null, null, "seed"));
+
+		targetingService.createRule("dark-mode-default", EnvironmentKey.DEVELOPMENT, new TargetingRuleRequest(
+				"Unsupported app versions stay on light", null,
+				List.of(new ClauseRequest("ld_application", null, ClauseOperator.APP_VERSION_SUPPORTED, List.of(), true)), "off", null,
+				null, "seed"));
+		targetingService.createRule("dark-mode-default", EnvironmentKey.DEVELOPMENT, new TargetingRuleRequest(
+				"Supported Android apps get dark mode", null,
+				List.of(new ClauseRequest("ld_application", null, ClauseOperator.APP_VERSION_SUPPORTED, List.of(), false),
+						new ClauseRequest("ld_device", "os.name", ClauseOperator.IN, List.of("Android"), false)),
+				"on", null, null, "seed"));
+
+		targetingService.createRule("pricing-page-redesign", EnvironmentKey.PRODUCTION, new TargetingRuleRequest(
+				"Internal organizations always see the new hero", null,
+				List.of(new ClauseRequest("organization", null, ClauseOperator.IN_SEGMENT, List.of("internal-orgs"), false)),
+				"new-hero", null, null, "seed"));
+
+		targetingService.bulkTarget("experimental-ai-summaries", EnvironmentKey.STAGING,
+				new BulkTargetRequest("user", "detailed", BulkOperation.ADD, List.of("user-1001", "user-1002"), "seed"));
+		targetingService.bulkTarget("experimental-ai-summaries", EnvironmentKey.STAGING,
+				new BulkTargetRequest("user", "concise", BulkOperation.ADD, List.of("qa-lead"), "seed"));
 	}
 
 	private StrategyRequest userId(List<String> userIds, String servedVariationKey) {

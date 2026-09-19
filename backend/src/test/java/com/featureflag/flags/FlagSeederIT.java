@@ -16,6 +16,11 @@ import org.springframework.test.context.ActiveProfiles;
 import com.featureflag.flags.audit.AuditRepository;
 import com.featureflag.flags.metrics.ConversionRepository;
 import com.featureflag.flags.metrics.ImpressionRepository;
+import com.featureflag.flags.targeting.MobileApplicationRepository;
+import com.featureflag.flags.targeting.RuleCategory;
+import com.featureflag.flags.targeting.Segment;
+import com.featureflag.flags.targeting.SegmentRepository;
+import com.featureflag.flags.targeting.TargetingRule;
 import com.featureflag.shared.ApiException;
 
 /**
@@ -44,6 +49,18 @@ class FlagSeederIT {
 
 	@Autowired
 	private ConversionRepository conversionRepository;
+
+	@Autowired
+	private SegmentRepository segmentRepository;
+
+	@Autowired
+	private MobileApplicationRepository mobileApplicationRepository;
+
+	@Autowired
+	private FlagCacheService flagCacheService;
+
+	@Autowired
+	private FlagEvaluationService evaluationService;
 
 	@Test
 	void contextStartupSeedsARealisticBaseline() {
@@ -109,7 +126,91 @@ class FlagSeederIT {
 	}
 
 	@Test
+	void segmentsAreSeededPerEnvironmentWithMembersRulesExclusionsAndANonUserKind() {
+		List<Segment> production = segmentRepository.findByEnvironment(EnvironmentKey.PRODUCTION);
+		List<Segment> staging = segmentRepository.findByEnvironment(EnvironmentKey.STAGING);
+
+		assertThat(production).extracting(Segment::getKey)
+				.containsExactlyInAnyOrder("beta-testers", "enterprise-customers", "mobile-beta", "internal-orgs");
+		assertThat(staging).extracting(Segment::getKey).containsExactly("beta-testers");
+		assertThat(segmentRepository.findByEnvironment(EnvironmentKey.DEVELOPMENT)).isEmpty();
+
+		Segment prodBeta = segmentRepository.findByEnvironmentAndKey(EnvironmentKey.PRODUCTION, "beta-testers").orElseThrow();
+		Segment stagingBeta = segmentRepository.findByEnvironmentAndKey(EnvironmentKey.STAGING, "beta-testers").orElseThrow();
+		assertThat(prodBeta.getIncluded()).containsExactly("user-1001", "user-1002", "user-1003");
+		assertThat(stagingBeta.getIncluded()).as("same key, different audience per environment").isEmpty();
+
+		Segment enterprise = segmentRepository.findByEnvironmentAndKey(EnvironmentKey.PRODUCTION, "enterprise-customers").orElseThrow();
+		assertThat(enterprise.getExcluded()).containsExactly("user-9999");
+		assertThat(enterprise.getRules()).hasSize(1);
+
+		Segment orgs = segmentRepository.findByEnvironmentAndKey(EnvironmentKey.PRODUCTION, "internal-orgs").orElseThrow();
+		assertThat(orgs.getContextKind()).isEqualTo("organization");
+	}
+
+	@Test
+	void mobileApplicationsAreSeeded() {
+		assertThat(mobileApplicationRepository.findAll()).extracting(app -> app.getKey())
+				.containsExactlyInAnyOrder("com.featureflag.mobile", "com.featureflag.tablet");
+	}
+
+	@Test
+	void targetingRulesAndIndividualTargetsAreSeededAcrossEveryCategory() {
+		List<TargetingRule> checkout = flagRepository.findByKey("new-checkout-flow").orElseThrow().getEnvironments()
+				.get(EnvironmentKey.PRODUCTION).getRules();
+		assertThat(checkout).hasSize(2);
+		assertThat(checkout.get(0).category()).isEqualTo(RuleCategory.SEGMENT);
+		assertThat(checkout.get(1).isEnabled()).as("a seeded, paused rule shows disable-without-delete").isFalse();
+
+		List<TargetingRule> darkMode = flagRepository.findByKey("dark-mode-default").orElseThrow().getEnvironments()
+				.get(EnvironmentKey.DEVELOPMENT).getRules();
+		assertThat(darkMode).extracting(TargetingRule::category).containsExactly(RuleCategory.MOBILE, RuleCategory.MOBILE);
+
+		List<TargetingRule> pricing = flagRepository.findByKey("pricing-page-redesign").orElseThrow().getEnvironments()
+				.get(EnvironmentKey.PRODUCTION).getRules();
+		assertThat(pricing.get(0).getClauses().get(0).getContextKind()).isEqualTo("organization");
+
+		EnvironmentConfig aiStaging = flagRepository.findByKey("experimental-ai-summaries").orElseThrow().getEnvironments()
+				.get(EnvironmentKey.STAGING);
+		assertThat(aiStaging.getIndividualTargets()).hasSize(2);
+	}
+
+	@Test
+	void seededTargetingActuallyDrivesEvaluationEndToEnd() {
+		Flag checkout = flagCacheService.get("new-checkout-flow").orElseThrow();
+		Flag darkMode = flagCacheService.get("dark-mode-default").orElseThrow();
+		Flag aiSummaries = flagCacheService.get("experimental-ai-summaries").orElseThrow();
+
+		EvaluationResult betaTester = evaluationService.evaluate(checkout, EnvironmentKey.PRODUCTION, UserContext.anonymous("user-1001"));
+		assertThat(betaTester.reason()).isEqualTo(EvaluationReason.RULE_MATCH);
+		assertThat(betaTester.variationKey()).isEqualTo("on");
+
+		EvaluationResult staff = evaluationService.evaluate(checkout, EnvironmentKey.PRODUCTION,
+				new UserContext("someone", java.util.Map.of("email", "sam@featureflag.dev")));
+		assertThat(staff.reason()).as("segment rule membership by email").isEqualTo(EvaluationReason.RULE_MATCH);
+
+		EvaluationResult pausedRuleIgnored = evaluationService.evaluate(checkout, EnvironmentKey.PRODUCTION,
+				new UserContext("berlin-user", java.util.Map.of("country", "DE")));
+		assertThat(pausedRuleIgnored.matchedRuleId()).as("the disabled Germany rule must not fire").isNull();
+
+		UserContext oldApp = new UserContext("u1", java.util.Map.of(), java.util.Map.of(
+				"ld_application", new ContextEntry("com.featureflag.mobile", java.util.Map.of("versionName", "2.3.0"))));
+		UserContext currentAndroid = new UserContext("u1", java.util.Map.of(), java.util.Map.of(
+				"ld_application", new ContextEntry("com.featureflag.mobile", java.util.Map.of("versionName", "2.5.0")),
+				"ld_device", new ContextEntry("d1", java.util.Map.of("os.name", "Android"))));
+		assertThat(evaluationService.evaluate(darkMode, EnvironmentKey.DEVELOPMENT, oldApp).variationKey()).isEqualTo("off");
+		assertThat(evaluationService.evaluate(darkMode, EnvironmentKey.DEVELOPMENT, currentAndroid).variationKey()).isEqualTo("on");
+
+		EvaluationResult targetedOverExperiment = evaluationService.evaluate(aiSummaries, EnvironmentKey.STAGING,
+				UserContext.anonymous("qa-lead"));
+		assertThat(targetedOverExperiment.reason()).isEqualTo(EvaluationReason.INDIVIDUAL_TARGET);
+		assertThat(targetedOverExperiment.variationKey()).isEqualTo("concise");
+	}
+
+	@Test
 	void runningTheSeederAgainResetsToTheSameBaselineWithoutDuplicating() {
+		long segmentCountBefore = segmentRepository.count();
+		long applicationCountBefore = mobileApplicationRepository.count();
 		long flagCountBefore = flagRepository.count();
 		long auditCountBefore = auditRepository.count();
 		long impressionCountBefore = impressionRepository.count();
@@ -121,5 +222,7 @@ class FlagSeederIT {
 		assertThat(auditRepository.count()).isEqualTo(auditCountBefore);
 		assertThat(impressionRepository.count()).isEqualTo(impressionCountBefore);
 		assertThat(conversionRepository.count()).isEqualTo(conversionCountBefore);
+		assertThat(segmentRepository.count()).isEqualTo(segmentCountBefore);
+		assertThat(mobileApplicationRepository.count()).isEqualTo(applicationCountBefore);
 	}
 }

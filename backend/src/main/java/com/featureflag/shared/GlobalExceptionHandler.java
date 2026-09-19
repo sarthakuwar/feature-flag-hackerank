@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -22,6 +23,8 @@ public class GlobalExceptionHandler {
 
 	private static final String INTERNAL_MESSAGE = "An unexpected error occurred.";
 
+	private static final int BAD_REQUEST_STATUS = 400;
+
 	private static final int NOT_FOUND_STATUS = 404;
 
 	private static final int SERVICE_UNAVAILABLE_STATUS = 503;
@@ -30,6 +33,13 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<Map<String, Object>> handleApiException(ApiException exception) {
 		return ResponseEntity.status(exception.getStatusCode())
 				.body(envelope(exception.getCode(), exception.getMessage(), exception.getDetails()));
+	}
+
+	/** A body that isn't valid JSON, or has a wrong-typed field or an unknown enum value, is the caller's mistake, not a server fault. */
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<Map<String, Object>> handleUnreadableBody() {
+		return ResponseEntity.status(BAD_REQUEST_STATUS).body(envelope("MALFORMED_REQUEST",
+				"Request body is missing or malformed. Check the JSON syntax, field types and enum values.", null));
 	}
 
 	@ExceptionHandler(AsyncRequestTimeoutException.class)
