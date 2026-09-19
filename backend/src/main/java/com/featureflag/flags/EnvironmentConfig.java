@@ -3,6 +3,7 @@ package com.featureflag.flags;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import com.featureflag.flags.targeting.IndividualTarget;
 import com.featureflag.flags.targeting.TargetingRule;
@@ -24,6 +25,9 @@ public class EnvironmentConfig {
 	private List<IndividualTarget> individualTargets = new ArrayList<>();
 
 	private List<TargetingRule> rules = new ArrayList<>();
+
+	/** Every progressive rollout ever run in this environment; at most one is ACTIVE at a time. */
+	private List<ProgressiveRollout> progressiveRollouts = new ArrayList<>();
 
 	public EnvironmentConfig() {
 	}
@@ -72,6 +76,28 @@ public class EnvironmentConfig {
 
 	public void setRules(List<TargetingRule> rules) {
 		this.rules = rules;
+	}
+
+	public List<ProgressiveRollout> getProgressiveRollouts() {
+		return progressiveRollouts;
+	}
+
+	public void setProgressiveRollouts(List<ProgressiveRollout> progressiveRollouts) {
+		this.progressiveRollouts = progressiveRollouts;
+	}
+
+	public Optional<ProgressiveRollout> activeProgressiveRollout() {
+		return progressiveRollouts.stream().filter(ProgressiveRollout::active).findFirst();
+	}
+
+	public Optional<ProgressiveRollout> activeRolloutFor(String strategyId) {
+		return progressiveRollouts.stream()
+				.filter(rollout -> rollout.active() && rollout.getStrategyId().equals(strategyId))
+				.findFirst();
+	}
+
+	public boolean hasExperiment() {
+		return strategies.stream().anyMatch(strategy -> strategy.getType() == StrategyType.EXPERIMENT_SPLIT);
 	}
 
 	public List<Strategy> orderedStrategies() {

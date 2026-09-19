@@ -34,6 +34,10 @@ public record EvaluationResult(String flagKey, String variationKey, String value
 		return new EvaluationResult(flagKey, variationKey, value, EvaluationReason.INDIVIDUAL_TARGET, null, null, false);
 	}
 
+	public static EvaluationResult progressiveRollout(String flagKey, String variationKey, String value, String strategyId) {
+		return new EvaluationResult(flagKey, variationKey, value, EvaluationReason.PROGRESSIVE_ROLLOUT, strategyId);
+	}
+
 	public static EvaluationResult of(String flagKey, String variationKey, String value, EvaluationReason reason) {
 		return new EvaluationResult(flagKey, variationKey, value, reason, null, null, true);
 	}

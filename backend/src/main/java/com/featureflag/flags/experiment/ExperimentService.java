@@ -76,6 +76,8 @@ public class ExperimentService {
 		validateWeights(weights, variationKeys, errors);
 		errors.throwIfAny();
 
+		requireNoActiveProgressiveRollout(config, key, environment);
+
 		Strategy strategy = findOrCreateExperimentStrategy(config);
 		strategy.setVariationWeights(new LinkedHashMap<>(weights));
 
@@ -198,6 +200,8 @@ public class ExperimentService {
 
 		errors.throwIfAny();
 
+		requireNoActiveProgressiveRollout(config, key, environment);
+
 		Map<String, Integer> fullWeights = new LinkedHashMap<>();
 
 		for (Variation variation : flag.getVariations()) {
@@ -217,6 +221,14 @@ public class ExperimentService {
 		flagStreamService.publishFlagChanged(environment, saved.getKey(), AuditAction.PROMOTE.name());
 
 		return saved;
+	}
+
+	/** A flag environment runs a progressive rollout or an experiment, never both at once. */
+	private void requireNoActiveProgressiveRollout(EnvironmentConfig config, String key, EnvironmentKey environment) {
+		if (config.activeProgressiveRollout().isPresent()) {
+			throw new ApiException(409, "ROLLOUT_IN_PROGRESS", "Flag '" + key + "' has an active progressive rollout in '"
+					+ environment + "'; stop it before starting an experiment.");
+		}
 	}
 
 	private Map<String, Integer> computeAllocation(String flagKey, EnvironmentKey environment, Strategy strategy) {

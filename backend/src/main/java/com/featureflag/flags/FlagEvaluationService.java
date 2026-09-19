@@ -3,6 +3,7 @@ package com.featureflag.flags;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,6 +26,12 @@ import com.featureflag.flags.targeting.TargetingRule;
  * strategy. If nothing resolves it, the environment's offVariationKey is served. Segments and the
  * mobile application registry are read from an in-memory {@link TargetingLookup}: no I/O, no side
  * effects, so it stays sub-millisecond.
+ *
+ * <p>A strategy with an ACTIVE progressive rollout resolves in two steps: the strategy's normal
+ * audience check first, then the user's stable-hash bucket against the rollout's current percentage
+ * (a pure function of the schedule stored on the flag and the injected clock) to choose between the
+ * rollout's from and to variations. Reading the clock is the only environmental input. Progressive
+ * rollouts currently attach to strategies, not to the targeting rules of step (3).
  */
 @Service
 public class FlagEvaluationService {
@@ -33,14 +40,27 @@ public class FlagEvaluationService {
 
 	private final ClauseMatcher clauseMatcher;
 
+	private final Clock clock;
+
 	@Autowired
-	public FlagEvaluationService(TargetingLookup targetingLookup) {
+	public FlagEvaluationService(TargetingLookup targetingLookup, Clock clock) {
 		this.clauseMatcher = new ClauseMatcher(targetingLookup);
+		this.clock = clock;
 	}
 
-	/** Evaluation with no segments or applications known - every segment clause simply doesn't match. */
+	/** Real clock, with the given segment/application store. */
+	public FlagEvaluationService(TargetingLookup targetingLookup) {
+		this(targetingLookup, Clock.systemUTC());
+	}
+
+	/** No segments or applications known (every segment clause simply doesn't match), with the given clock. */
+	public FlagEvaluationService(Clock clock) {
+		this(TargetingLookup.EMPTY, clock);
+	}
+
+	/** No segments or applications known, real clock. */
 	public FlagEvaluationService() {
-		this(TargetingLookup.EMPTY);
+		this(TargetingLookup.EMPTY, Clock.systemUTC());
 	}
 
 	public EvaluationResult evaluate(Flag flag, EnvironmentKey environment, UserContext userContext) {
@@ -64,6 +84,12 @@ public class FlagEvaluationService {
 				int bucket = bucketFor(flag.getKey(), userContext);
 
 				if (bucket < strategy.getPercentage()) {
+					Optional<ProgressiveRollout> progressive = config.activeRolloutFor(strategy.getId());
+
+					if (progressive.isPresent()) {
+						return progressiveResult(flag, strategy, progressive.get(), bucket);
+					}
+
 					return EvaluationResult.of(flag.getKey(), strategy.getServedVariationKey(),
 							valueOf(flag, strategy.getServedVariationKey()), EvaluationReason.ROLLOUT_ENABLED);
 				}
@@ -74,6 +100,12 @@ public class FlagEvaluationService {
 				return EvaluationResult.of(flag.getKey(), variationKey, valueOf(flag, variationKey),
 						EvaluationReason.EXPERIMENT_ASSIGNED);
 			} else if (strategy.matches(userContext)) {
+				Optional<ProgressiveRollout> progressive = config.activeRolloutFor(strategy.getId());
+
+				if (progressive.isPresent()) {
+					return progressiveResult(flag, strategy, progressive.get(), bucketFor(flag.getKey(), userContext));
+				}
+
 				return EvaluationResult.strategyMatch(flag.getKey(), strategy.getServedVariationKey(),
 						valueOf(flag, strategy.getServedVariationKey()), strategy.getId());
 			}
@@ -113,6 +145,18 @@ public class FlagEvaluationService {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Users whose bucket is below the rollout's current percentage get the new variation, everyone
+	 * else in the rule's audience keeps the old one. Because the bucket is stable and the percentage
+	 * only ever grows, a user who has moved to the new variation never moves back.
+	 */
+	private EvaluationResult progressiveResult(Flag flag, Strategy strategy, ProgressiveRollout rollout, int bucket) {
+		String variationKey = bucket < rollout.percentageAt(clock.instant()) ? rollout.getToVariationKey()
+				: rollout.getFromVariationKey();
+
+		return EvaluationResult.progressiveRollout(flag.getKey(), variationKey, valueOf(flag, variationKey), strategy.getId());
 	}
 
 	/**
