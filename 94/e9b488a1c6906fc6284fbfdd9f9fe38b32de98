@@ -1,0 +1,23 @@
+backend/src/test/java/com/featureflag/flags/FlagSeederProgressiveRolloutIT.java
+  s_3eb9b6696efabc::t_2ef45546efde13 81-128
+backend/src/main/java/com/featureflag/flags/FlagSeeder.java
+  s_3eb9b6696efabc::t_884cdcb2912926 303-309
+  s_3eb9b6696efabc::t_f0525e41227e59 32
+  s_3eb9b6696efabc::t_d88f32a6e2db6c 310
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "94e9b488a1c6906fc6284fbfdd9f9fe38b32de98",
+  "prompts": {},
+  "sessions": {
+    "s_3eb9b6696efabc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6817b363-dc63-4f4c-b23e-7785dca08c44",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
