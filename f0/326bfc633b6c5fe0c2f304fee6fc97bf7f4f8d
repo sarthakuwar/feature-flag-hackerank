@@ -1,0 +1,140 @@
+frontend/src/features/applications/ApplicationsPage.jsx
+  s_f96587dcb01bd1::t_18623a6bd30831 1-183
+frontend/src/features/flags/EditFlagDialog.jsx
+  s_f96587dcb01bd1::t_1f83ffd39c9482 1-53
+frontend/src/shared/state/LiveContext.jsx
+  s_f96587dcb01bd1::t_3ebb959b360276 1
+  s_f96587dcb01bd1::t_fab0de6df4e6b3 2-21,28-46
+  s_f96587dcb01bd1::t_daba6c1b941799 22-27
+frontend/src/shared/ClauseEditor.jsx
+  s_f96587dcb01bd1::t_f33bf7eb5e9915 1-163
+frontend/src/shared/format.js
+  s_f96587dcb01bd1::t_e1c479ea6947d4 10,13-14,29-58
+frontend/src/shared/Dialog.jsx
+  s_f96587dcb01bd1::t_89521ad009ac6b 1-58
+frontend/src/shared/ConfirmDialog.jsx
+  s_f96587dcb01bd1::t_e87c1aa95ad091 1-26
+frontend/src/features/flags/WeightBar.jsx
+  s_f96587dcb01bd1::t_c058623b9d291f 1-25
+frontend/src/features/flags/IndividualTargetsPanel.jsx
+  s_f96587dcb01bd1::t_c1d6a70b4783db 1-145
+frontend/src/shared/api/client.js
+  s_f96587dcb01bd1::t_09d31d16339498 1-11,26
+frontend/src/features/segments/SegmentsPage.jsx
+  s_f96587dcb01bd1::t_4e2304f91c6830 1-7,9-98,100-122
+  s_f96587dcb01bd1::t_dc96179a39e457 8
+  s_f96587dcb01bd1::t_7c5bbe51284824 99
+frontend/src/features/flags/RolloutsTab.jsx
+  s_f96587dcb01bd1::t_46db97447ac049 1-266
+frontend/src/shared/TabList.jsx
+  s_f96587dcb01bd1::t_4ea38ef54bacc1 1-55
+frontend/src/App.jsx
+  s_f96587dcb01bd1::t_fee9461bd0f5ab 1,3,8-19,23,25-29,32-33,36-40,43-46,57-63
+frontend/src/shared/api/stream.js
+  s_f96587dcb01bd1::t_06eac0b80c8c35 1-22
+frontend/src/features/playground/PlaygroundPage.jsx
+  s_f96587dcb01bd1::t_5f461386176b4b 1-221
+frontend/src/shared/ClauseSummary.jsx
+  s_f96587dcb01bd1::t_caf5a31e5d06bb 1-21
+frontend/src/features/flags/CreateFlagDialog.jsx
+  s_f96587dcb01bd1::t_12357267f53e33 1,4-7,9,18-21,26,33,49-50,61,63-65,69-71,81,88-93,105,107-148,150-155,157,159-170
+frontend/src/features/flags/TargetingTab.jsx
+  s_f96587dcb01bd1::t_75c095f40799e1 1-132
+frontend/src/shared/api/flags.js
+  s_f96587dcb01bd1::t_4480922cfdd07c 3-6,8,20,30-32,50-52,64,68,70,72-88,90-92,94-96,101-103,108-110,115-117,122-124,129-131,136-138,143-148,150-152,157-159,164-180,182-184,186-188,190-193,196,198-206,208,210,212-214,216-219,249-250
+  s_f96587dcb01bd1::t_df0a89a8caaa7e 13,21-23,25,29,33,37,41,45,49,53,67,71,89,93,97-100,104-107,111-114,118-121,125-128,132-135,139-142,149,153-156,160-163,181,185,189,197,207,211,215,221,228,235,242
+  s_f96587dcb01bd1::t_3860403165ba5d 65
+  s_f96587dcb01bd1::t_4d104ce50b6c22 69
+  s_f96587dcb01bd1::t_d5e365e7b2c112 209
+frontend/src/shared/TagInput.jsx
+  s_f96587dcb01bd1::t_6dcad8fbad2ed9 1-62
+frontend/src/shared/ClauseListEditor.jsx
+  s_f96587dcb01bd1::t_db707eb6d52782 1-29
+  s_f96587dcb01bd1::t_af7d01b762e319 30
+frontend/src/layout/AppShell.jsx
+  s_f96587dcb01bd1::t_10c4b2e4f9cbe5 2,6-18,22,24,39-49,56-59
+  s_f96587dcb01bd1::t_29d33bbc15a059 60
+frontend/src/features/flags/RuleDialog.jsx
+  s_f96587dcb01bd1::t_fb84f10e431b1b 1-170
+frontend/src/features/flags/VariationsTab.jsx
+  s_f96587dcb01bd1::t_d30af6588503ef 1-198
+frontend/src/features/flags/RulesPanel.jsx
+  s_f96587dcb01bd1::t_4ca6985b96366e 1-88,90-94,96-253
+  s_f96587dcb01bd1::t_10a84459f685cc 95
+  s_f96587dcb01bd1::t_53d71ebe1ad80b 89
+frontend/src/shared/useAction.js
+  s_f96587dcb01bd1::t_79ad70170f38fb 1-23
+frontend/src/shared/ErrorBanner.jsx
+  s_f96587dcb01bd1::t_ce8dcd96051e13 1-34
+frontend/src/shared/KeyList.jsx
+  s_f96587dcb01bd1::t_03e5644e49af35 1-54
+frontend/src/features/flags/FlagsListPage.jsx
+  s_f96587dcb01bd1::t_7c66b1565a0ba1 1,4-9,11,19-31,38-40,44-45,51-54,57-62,72-73,76-86,96,107,118,127,130,133,143-148,150,153-155,157-168,170-224,229,236-237
+frontend/src/features/flags/EvaluatePanel.jsx
+  s_f96587dcb01bd1::t_19b1a78dcea2d3 2-5,8-15,17-21,26-32,35-36,38-42,45-49,52-54,59,71-72
+frontend/src/features/flags/BulkArchiveDialog.jsx
+  s_f96587dcb01bd1::t_fa25a8a43c8add 9,12
+  s_f96587dcb01bd1::t_4ce989d664c9cd 1-8,10-11,13-78
+frontend/src/shared/ContextBuilder.jsx
+  s_f96587dcb01bd1::t_9d3e1861a636ca 1-124
+frontend/src/features/flags/HistoryTab.jsx
+  s_f96587dcb01bd1::t_57f439c260c20f 1-82
+frontend/src/features/flags/StrategiesPanel.jsx
+  s_f96587dcb01bd1::t_5bd8ac84ddc8f1 1-180
+frontend/src/shared/targeting.js
+  s_f96587dcb01bd1::t_e62a86cd0336b0 1-89
+frontend/src/features/flags/FlagDetailPage.jsx
+  s_f96587dcb01bd1::t_3485ac10f8d400 1-2,4-12,14-16,19-27,30-43,45-48,50-54,56,73,80-81,83-89,92,94-95,123-127,129-133,136,141-159,162-176,179-180,183-191,193-197,201,224-242,246-252,278-288
+frontend/src/features/segments/CreateSegmentDialog.jsx
+  s_f96587dcb01bd1::t_f75506189451ee 1-95
+frontend/src/shared/useResource.js
+  s_f96587dcb01bd1::t_afa512c1278e82 1-36
+frontend/src/features/flags/DependsOnPicker.jsx
+  s_f96587dcb01bd1::t_b0a0c28314fe6c 1-33
+frontend/src/features/flags/StartRolloutDialog.jsx
+  s_f96587dcb01bd1::t_fd6b10dd60e780 1-263
+frontend/src/features/flags/MetricsTab.jsx
+  s_f96587dcb01bd1::t_07b44be580f029 137-164
+  s_f96587dcb01bd1::t_aef1c25b258cdd 123-124
+  s_f96587dcb01bd1::t_1513f77af19793 10-11,31-32,48,50-51,74,126
+frontend/src/features/segments/SegmentDetailPage.jsx
+  s_f96587dcb01bd1::t_499b538a0fbbbd 1-448
+.gitattributes
+  s_f96587dcb01bd1::t_8e0ad81945b398 6-10
+.githooks/pre-commit
+  s_f96587dcb01bd1::t_465b84636a9288 1-9
+.github/workflows/docs-check.yml
+  s_f96587dcb01bd1::t_274ae892d3afd3 1-17
+CLAUDE.md
+  s_f96587dcb01bd1::t_306a01c7d8dcdb 1-83
+README.md
+  s_f96587dcb01bd1::t_39b9ca916ca5c3 7-26,34,40,42-50,52,55-58,60-62,92,108-120,129-131,135-143,146-148
+backend/CLAUDE.md
+  s_f96587dcb01bd1::t_1db9a3db928f30 1-71
+frontend/CLAUDE.md
+  s_f96587dcb01bd1::t_da2914a62154a9 1-54
+frontend/src/styles.css
+  s_f96587dcb01bd1::t_ce088695c0e164 29-44,69-83,304-305,1228-2036
+package.json
+  s_f96587dcb01bd1::t_52e29d08f170c6 10-11
+scripts/docs-check.mjs
+  s_f96587dcb01bd1::t_90be9adce82078 1-512
+scripts/install-git-hooks.mjs
+  s_f96587dcb01bd1::t_ee19e1e9a22f0e 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f0326bfc633b6c5fe0c2f304fee6fc97bf7f4f8d",
+  "prompts": {},
+  "sessions": {
+    "s_f96587dcb01bd1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eee79a5e-d5c7-4e63-bbfd-0e6c7fbef5a2",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
