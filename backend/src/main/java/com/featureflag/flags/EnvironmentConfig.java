@@ -13,6 +13,10 @@ import com.featureflag.flags.targeting.TargetingRule;
  * #rules} in list order (skipping disabled ones), then the legacy {@link #strategies} (rollouts and
  * experiments), then {@link #offVariationKey}. Environments written before targeting rules existed
  * simply have empty rule/target lists and evaluate exactly as they always did.
+ *
+ * <p>{@link #progressiveRollouts} is the history of staged ramps in this environment. An ACTIVE one
+ * ramps either a targeting rule or a legacy strategy (see {@link ProgressiveRollout}); at most one is
+ * active at a time, and none can run alongside an experiment.
  */
 public class EnvironmentConfig {
 
@@ -92,7 +96,13 @@ public class EnvironmentConfig {
 
 	public Optional<ProgressiveRollout> activeRolloutFor(String strategyId) {
 		return progressiveRollouts.stream()
-				.filter(rollout -> rollout.active() && rollout.getStrategyId().equals(strategyId))
+				.filter(rollout -> rollout.active() && strategyId.equals(rollout.getStrategyId()))
+				.findFirst();
+	}
+
+	public Optional<ProgressiveRollout> activeRolloutForRule(String ruleId) {
+		return progressiveRollouts.stream()
+				.filter(rollout -> rollout.active() && ruleId.equals(rollout.getRuleId()))
 				.findFirst();
 	}
 

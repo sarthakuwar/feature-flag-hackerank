@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -113,6 +114,7 @@ public class TargetingService {
 		EnvironmentConfig config = requireEnvironment(flag, environment);
 		int index = indexOfRule(config, ruleId);
 		TargetingRule existing = config.getRules().get(index);
+		requireUpdateCompatibleWithActiveRollout(config, existing, request);
 
 		FieldErrors errors = new FieldErrors();
 		requireText(request.changedBy(), "changedBy", errors);
@@ -130,6 +132,26 @@ public class TargetingService {
 				+ environment.name().toLowerCase() + ".");
 
 		return updated;
+	}
+
+	/**
+	 * While a progressive rollout is ramping a rule, its audience (clauses), description, order and
+	 * enabled state can all change, but not what it serves: that is the rollout's "from", and turning it
+	 * into a percentage rollout would leave the ramp with nothing to move away from. Stopping the
+	 * rollout first is how a caller decides what the rule serves instead.
+	 */
+	private void requireUpdateCompatibleWithActiveRollout(EnvironmentConfig config, TargetingRule existing,
+			TargetingRuleRequest request) {
+		if (config.activeRolloutForRule(existing.getId()).isEmpty()) {
+			return;
+		}
+
+		boolean nowServesRollout = request.rolloutWeights() != null && !request.rolloutWeights().isEmpty();
+
+		if (nowServesRollout || !Objects.equals(existing.getServedVariationKey(), request.servedVariationKey())) {
+			throw new ApiException(409, "ROLLOUT_IN_PROGRESS", "Rule '" + existing.getId()
+					+ "' has an active progressive rollout, so the variation it serves cannot change; stop the rollout first.");
+		}
 	}
 
 	/** Disabling keeps the rule (and its position) but evaluation skips it; enabling puts it straight back to work. */
@@ -160,7 +182,14 @@ public class TargetingService {
 		requireText(changedBy, "changedBy", errors);
 		errors.throwIfAny();
 
-		TargetingRule removed = config.getRules().remove(indexOfRule(config, ruleId));
+		int index = indexOfRule(config, ruleId);
+
+		if (config.activeRolloutForRule(ruleId).isPresent()) {
+			throw new ApiException(409, "ROLLOUT_IN_PROGRESS",
+					"Rule '" + ruleId + "' has an active progressive rollout and cannot be deleted; stop the rollout first.");
+		}
+
+		TargetingRule removed = config.getRules().remove(index);
 		Flag saved = save(flag, environment, changedBy, "Deleted targeting rule " + describe(removed) + " in "
 				+ environment.name().toLowerCase() + ".");
 

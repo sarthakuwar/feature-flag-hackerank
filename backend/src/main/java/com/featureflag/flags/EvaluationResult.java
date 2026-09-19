@@ -34,6 +34,15 @@ public record EvaluationResult(String flagKey, String variationKey, String value
 		return new EvaluationResult(flagKey, variationKey, value, EvaluationReason.INDIVIDUAL_TARGET, null, null, false);
 	}
 
+	/**
+	 * A user in a targeting rule's audience that has an active progressive rollout. The rule's audience
+	 * is hand-picked, not randomly assigned, so like any fixed-variation rule this traffic stays out of
+	 * experiment metrics.
+	 */
+	public static EvaluationResult progressiveRuleRollout(String flagKey, String variationKey, String value, String ruleId) {
+		return new EvaluationResult(flagKey, variationKey, value, EvaluationReason.PROGRESSIVE_ROLLOUT, null, ruleId, false);
+	}
+
 	public static EvaluationResult progressiveRollout(String flagKey, String variationKey, String value, String strategyId) {
 		return new EvaluationResult(flagKey, variationKey, value, EvaluationReason.PROGRESSIVE_ROLLOUT, strategyId);
 	}

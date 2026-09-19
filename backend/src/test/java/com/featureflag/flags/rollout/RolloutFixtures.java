@@ -18,6 +18,9 @@ import com.featureflag.flags.RolloutStatus;
 import com.featureflag.flags.Strategy;
 import com.featureflag.flags.StrategyType;
 import com.featureflag.flags.Variation;
+import com.featureflag.flags.targeting.Clause;
+import com.featureflag.flags.targeting.ClauseOperator;
+import com.featureflag.flags.targeting.TargetingRule;
 
 /** Builders shared by the progressive rollout unit tests. */
 public final class RolloutFixtures {
@@ -141,6 +144,47 @@ public final class RolloutFixtures {
 		rollout.setStartAt(startAt);
 		rollout.setCreatedAt(startAt);
 		rollout.setStartedBy("tester");
+
+		return rollout;
+	}
+
+	// ---- targeting-rule targets (as opposed to the legacy strategies above) ----
+
+	public static final String TARGETING_RULE_ID = "targeting-rule-1";
+
+	/** A targeting rule matching users whose {@code attribute} is {@code value}, serving one fixed variation. */
+	public static TargetingRule targetingRule(String id, String attribute, String value, String served) {
+		TargetingRule rule = new TargetingRule();
+		rule.setId(id);
+		rule.setServedVariationKey(served);
+		rule.setClauses(new ArrayList<>(List.of(new Clause("user", attribute, ClauseOperator.IN, List.of(value), false))));
+
+		return rule;
+	}
+
+	/** {@link #flag} with a single targeting rule {@link #TARGETING_RULE_ID} (plan = pro) serving "off" in every environment. */
+	public static Flag flagWithTargetingRule(String key) {
+		Flag flag = flag(key);
+
+		flag.getEnvironments().values()
+				.forEach(config -> config.getRules().add(targetingRule(TARGETING_RULE_ID, "plan", "pro", "off")));
+
+		return flag;
+	}
+
+	public static TargetingRule targetingRuleOf(Flag flag, String id) {
+		return production(flag).getRules().stream().filter(rule -> id.equals(rule.getId())).findFirst().orElseThrow();
+	}
+
+	/** 25% at start, 50% after an hour, 100% after two, ramping a targeting rule rather than a strategy. */
+	public static ProgressiveRollout ruleRollout(String id, String ruleId, String from, String to, Instant startAt) {
+		return ruleRollout(id, ruleId, from, to, startAt, stages(25, 0, 50, 60, 100, 120));
+	}
+
+	public static ProgressiveRollout ruleRollout(String id, String ruleId, String from, String to, Instant startAt,
+			List<RolloutStage> stages) {
+		ProgressiveRollout rollout = rollout(id, null, from, to, startAt, stages);
+		rollout.setRuleId(ruleId);
 
 		return rollout;
 	}

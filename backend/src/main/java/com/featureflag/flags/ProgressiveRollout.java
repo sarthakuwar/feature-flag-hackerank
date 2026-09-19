@@ -7,8 +7,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Gradually moves a targeting rule's audience from the variation it serves today
- * ({@link #fromVariationKey}) to {@link #toVariationKey} on a fixed schedule. The schedule lives on
+ * Gradually moves a rule's audience from the variation it serves today
+ * ({@link #fromVariationKey}) to {@link #toVariationKey} on a fixed schedule. The rule is either a
+ * targeting rule ({@link #ruleId}, the current model) or a legacy activation strategy
+ * ({@link #strategyId}); exactly one of the two is set. The schedule lives on
  * the flag document itself and {@link #percentageAt} is a pure function of it, so evaluation stays
  * an in-memory computation against the cached flag - nothing has to be written for traffic to
  * advance from one stage to the next. Users are assigned by the same stable hash bucket every
@@ -23,7 +25,11 @@ public class ProgressiveRollout {
 
 	private String id;
 
+	/** Set when the rollout targets a legacy strategy; null when it targets a targeting rule. */
 	private String strategyId;
+
+	/** Set when the rollout targets a targeting rule; null when it targets a legacy strategy. */
+	private String ruleId;
 
 	private String fromVariationKey;
 
@@ -66,6 +72,19 @@ public class ProgressiveRollout {
 
 	public void setStrategyId(String strategyId) {
 		this.strategyId = strategyId;
+	}
+
+	public String getRuleId() {
+		return ruleId;
+	}
+
+	public void setRuleId(String ruleId) {
+		this.ruleId = ruleId;
+	}
+
+	/** Whether the target is a targeting rule (as opposed to a legacy strategy). */
+	public boolean targetsRule() {
+		return ruleId != null;
 	}
 
 	public String getFromVariationKey() {

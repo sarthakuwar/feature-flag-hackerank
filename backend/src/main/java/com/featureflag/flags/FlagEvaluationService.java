@@ -27,11 +27,12 @@ import com.featureflag.flags.targeting.TargetingRule;
  * mobile application registry are read from an in-memory {@link TargetingLookup}: no I/O, no side
  * effects, so it stays sub-millisecond.
  *
- * <p>A strategy with an ACTIVE progressive rollout resolves in two steps: the strategy's normal
- * audience check first, then the user's stable-hash bucket against the rollout's current percentage
- * (a pure function of the schedule stored on the flag and the injected clock) to choose between the
- * rollout's from and to variations. Reading the clock is the only environmental input. Progressive
- * rollouts currently attach to strategies, not to the targeting rules of step (3).
+ * <p>A targeting rule (step 3) or strategy (step 4) with an ACTIVE progressive rollout resolves in
+ * two steps: its normal audience check first, then the user's stable-hash bucket against the
+ * rollout's current percentage (a pure function of the schedule stored on the flag and the injected
+ * clock) to choose between the rollout's from and to variations. Reading the clock is the only
+ * environmental input. Only a rule that serves one fixed variation can be ramped; a rule that
+ * itself serves a percentage rollout has no single variation to move away from.
  */
 @Service
 public class FlagEvaluationService {
@@ -136,6 +137,16 @@ public class FlagEvaluationService {
 				continue;
 			}
 
+			if (!rule.servesRollout()) {
+				Optional<ProgressiveRollout> progressive = config.activeRolloutForRule(rule.getId());
+
+				if (progressive.isPresent()) {
+					String rampedKey = rolloutVariation(progressive.get(), bucketFor(flag.getKey(), userContext));
+
+					return EvaluationResult.progressiveRuleRollout(flag.getKey(), rampedKey, valueOf(flag, rampedKey), rule.getId());
+				}
+			}
+
 			String variationKey = rule.servesRollout()
 					? resolveWeightedVariation(flag, rule.getRolloutWeights(), bucketFor(flag.getKey(), userContext))
 					: rule.getServedVariationKey();
@@ -153,10 +164,14 @@ public class FlagEvaluationService {
 	 * only ever grows, a user who has moved to the new variation never moves back.
 	 */
 	private EvaluationResult progressiveResult(Flag flag, Strategy strategy, ProgressiveRollout rollout, int bucket) {
-		String variationKey = bucket < rollout.percentageAt(clock.instant()) ? rollout.getToVariationKey()
-				: rollout.getFromVariationKey();
+		String variationKey = rolloutVariation(rollout, bucket);
 
 		return EvaluationResult.progressiveRollout(flag.getKey(), variationKey, valueOf(flag, variationKey), strategy.getId());
+	}
+
+	/** Shared by strategy and rule rollouts: the new variation for buckets under the current percentage, else the old one. */
+	private String rolloutVariation(ProgressiveRollout rollout, int bucket) {
+		return bucket < rollout.percentageAt(clock.instant()) ? rollout.getToVariationKey() : rollout.getFromVariationKey();
 	}
 
 	/**

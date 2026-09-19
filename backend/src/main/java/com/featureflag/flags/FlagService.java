@@ -206,6 +206,12 @@ public class FlagService {
 					"An experiment cannot be added while a progressive rollout is active; stop the rollout first.");
 		}
 
+		if (rollout.targetsRule()) {
+			// A targeting rule is not part of this request (rules have their own endpoints, guarded in
+			// TargetingService), so there is nothing else about the rollout this save could invalidate.
+			return;
+		}
+
 		Strategy target = requested.stream().filter(strategy -> rollout.getStrategyId().equals(strategy.getId())).findFirst()
 				.orElse(null);
 

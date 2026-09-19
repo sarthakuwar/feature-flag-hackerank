@@ -27,12 +27,14 @@ import com.featureflag.flags.Strategy;
 import com.featureflag.flags.audit.AuditAction;
 import com.featureflag.flags.audit.AuditService;
 import com.featureflag.flags.rollout.dto.StartProgressiveRolloutRequest;
+import com.featureflag.flags.targeting.TargetingRule;
 import com.featureflag.shared.ApiException;
 import com.featureflag.shared.FieldErrors;
 
 /**
- * The control plane for progressive rollouts: gradually moving a targeting rule's audience from the
- * variation it serves today to a new one over a schedule. Like {@link
+ * The control plane for progressive rollouts: gradually moving a rule's audience from the variation
+ * it serves today to a new one over a schedule. The rule is a targeting rule (the current model) or,
+ * for existing callers, a legacy activation strategy. Like {@link
  * com.featureflag.flags.experiment.ExperimentService} it always mutates the flag fetched fresh from
  * {@link FlagRepository} before saving and refreshing {@link FlagCacheService}, and broadcasts the
  * change over the existing stream so SDK caches pick it up within seconds.
@@ -41,8 +43,8 @@ import com.featureflag.shared.FieldErrors;
  * percentage from the stored schedule. The only time-driven write is {@link #completeDueRollouts},
  * which turns a rollout that has reached its final 100% stage into the rule's permanent state.
  *
- * <p>A rollout can start on a rule only if, in that environment, no other progressive rollout is
- * active and no experiment exists. This app has no guarded rollouts and no migration flag type, so
+ * <p>A rollout can start on a rule only if it serves one fixed variation and is enabled, and only if,
+ * in that environment, no other progressive rollout is active and no experiment exists. This app has no guarded rollouts and no migration flag type, so
  * the other two conditions in the product spec are unrepresentable here rather than checked.
  */
 @Service
@@ -97,7 +99,14 @@ public class ProgressiveRolloutService {
 
 		FieldErrors errors = new FieldErrors();
 		validateRequiredText(request.changedBy(), "changedBy", errors);
-		validateRequiredText(request.strategyId(), "strategyId", errors);
+		boolean hasRule = request.ruleId() != null && !request.ruleId().isBlank();
+		boolean hasStrategy = request.strategyId() != null && !request.strategyId().isBlank();
+
+		if (hasRule && hasStrategy) {
+			errors.add("ruleId", "Provide either ruleId or strategyId, not both.");
+		} else if (!hasRule && !hasStrategy) {
+			errors.add("ruleId", "A ruleId (or, for a legacy strategy, a strategyId) is required.");
+		}
 
 		if (request.toVariationKey() == null || request.toVariationKey().isBlank()) {
 			errors.add("toVariationKey", "A variation key is required.");
@@ -115,22 +124,44 @@ public class ProgressiveRolloutService {
 
 		errors.throwIfAny();
 
-		Strategy rule = config.getStrategies().stream().filter(strategy -> request.strategyId().equals(strategy.getId()))
-				.findFirst()
-				.orElseThrow(() -> new ApiException(404, "STRATEGY_NOT_FOUND",
-						"Flag '" + key + "' has no targeting rule '" + request.strategyId() + "' in '" + environment + "'."));
+		String targetId;
+		String fromVariationKey;
+
+		if (hasRule) {
+			TargetingRule rule = config.getRules().stream().filter(candidate -> request.ruleId().equals(candidate.getId())).findFirst()
+					.orElseThrow(() -> new ApiException(404, "RULE_NOT_FOUND",
+							"Flag '" + key + "' has no targeting rule '" + request.ruleId() + "' in '" + environment + "'."));
+
+			requireRampable(rule);
+			targetId = rule.getId();
+			fromVariationKey = rule.getServedVariationKey();
+		} else {
+			Strategy strategy = config.getStrategies().stream().filter(candidate -> request.strategyId().equals(candidate.getId()))
+					.findFirst()
+					.orElseThrow(() -> new ApiException(404, "STRATEGY_NOT_FOUND",
+							"Flag '" + key + "' has no strategy '" + request.strategyId() + "' in '" + environment + "'."));
+
+			targetId = strategy.getId();
+			fromVariationKey = strategy.getServedVariationKey();
+		}
 
 		requireEligible(config, key, environment);
 
-		if (request.toVariationKey().equals(rule.getServedVariationKey())) {
+		if (request.toVariationKey().equals(fromVariationKey)) {
 			errors.add("toVariationKey", "The rule already serves '" + request.toVariationKey() + "'; choose a different variation to roll out.");
 			errors.throwIfAny();
 		}
 
 		ProgressiveRollout rollout = new ProgressiveRollout();
 		rollout.setId(UUID.randomUUID().toString());
-		rollout.setStrategyId(rule.getId());
-		rollout.setFromVariationKey(rule.getServedVariationKey());
+
+		if (hasRule) {
+			rollout.setRuleId(targetId);
+		} else {
+			rollout.setStrategyId(targetId);
+		}
+
+		rollout.setFromVariationKey(fromVariationKey);
 		rollout.setToVariationKey(request.toVariationKey());
 		rollout.setStages(new ArrayList<>(stages));
 		rollout.setStatus(RolloutStatus.ACTIVE);
@@ -260,14 +291,37 @@ public class ProgressiveRolloutService {
 	/** Rewrites the rule to its permanent variation and records the rollout as finished. */
 	private void end(EnvironmentConfig config, ProgressiveRollout rollout, RolloutStatus status, String resolvedVariationKey,
 			int finalPercentage, String endedBy, Instant endedAt) {
-		config.getStrategies().stream().filter(strategy -> rollout.getStrategyId().equals(strategy.getId())).findFirst()
-				.ifPresent(strategy -> strategy.setServedVariationKey(resolvedVariationKey));
+		if (rollout.targetsRule()) {
+			config.getRules().stream().filter(rule -> rollout.getRuleId().equals(rule.getId())).findFirst()
+					.ifPresent(rule -> rule.setServedVariationKey(resolvedVariationKey));
+		} else {
+			config.getStrategies().stream().filter(strategy -> rollout.getStrategyId().equals(strategy.getId())).findFirst()
+					.ifPresent(strategy -> strategy.setServedVariationKey(resolvedVariationKey));
+		}
 
 		rollout.setStatus(status);
 		rollout.setEndedAt(endedAt);
 		rollout.setEndedBy(endedBy);
 		rollout.setResolvedVariationKey(resolvedVariationKey);
 		rollout.setFinalPercentage(finalPercentage);
+	}
+
+	/**
+	 * Only a rule that serves one fixed variation has a single "from" to move away from, and it has to
+	 * be switched on: a disabled rule serves nobody, so the ramp would advance with no effect and
+	 * later rewrite the rule without anyone ever having seen the change.
+	 */
+	private void requireRampable(TargetingRule rule) {
+		if (rule.servesRollout()) {
+			FieldErrors errors = new FieldErrors();
+			errors.add("ruleId", "Rule '" + rule.getId() + "' serves a percentage rollout; only a rule that serves one variation can be ramped.");
+			errors.throwIfAny();
+		}
+
+		if (!rule.isEnabled()) {
+			throw new ApiException(409, "RULE_DISABLED",
+					"Rule '" + rule.getId() + "' is disabled; enable it before starting a progressive rollout on it.");
+		}
 	}
 
 	private void requireEligible(EnvironmentConfig config, String key, EnvironmentKey environment) {
