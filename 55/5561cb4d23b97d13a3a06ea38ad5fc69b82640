@@ -1,0 +1,58 @@
+backend/src/main/java/com/featureflag/flags/EnvironmentConfig.java
+  s_3eb9b6696efabc::t_3a327dce39be1f 16-19
+  s_3eb9b6696efabc::t_7a76909c8de59c 99-105
+backend/src/main/java/com/featureflag/flags/targeting/TargetingService.java
+  s_3eb9b6696efabc::t_7a76909c8de59c 10,117,137-156,185-192
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutService.java
+  s_3eb9b6696efabc::t_a30764280a6e1a 35-37
+  s_3eb9b6696efabc::t_2e82251ed7e571 309-326
+  s_3eb9b6696efabc::t_8ccbf21ff6c8c1 46-47
+  s_3eb9b6696efabc::t_88ae18d2717540 127-128,130-146,150,157-164
+  s_3eb9b6696efabc::t_da2610d0191d60 294-300
+  s_3eb9b6696efabc::t_f16cb2782fb8f6 30
+  s_3eb9b6696efabc::t_0b085ded0310b8 102-109,129
+backend/src/main/java/com/featureflag/flags/ProgressiveRollout.java
+  s_3eb9b6696efabc::t_b7198d15ccc9a4 10-13,33
+  s_3eb9b6696efabc::t_846e02bac14d7d 28,31-32
+  s_3eb9b6696efabc::t_5c79243316d87a 77-89
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_3eb9b6696efabc::t_bd8444d951320f 27-35
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutEvaluationTest.java
+  s_3eb9b6696efabc::t_a2a1b2fa269122 1-302
+backend/src/test/java/com/featureflag/flags/rollout/RolloutFixtures.java
+  s_3eb9b6696efabc::t_c09604ab45a4e0 21-23
+  s_3eb9b6696efabc::t_94e2c29fb804b2 151-191
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_3eb9b6696efabc::t_7a76909c8de59c 209-214
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutControllerIT.java
+  s_3eb9b6696efabc::t_1abe15c324fc53 306,309
+  s_3eb9b6696efabc::t_317fbdb0c0e464 1-188,190-305,307-308,310-563,565-667
+  s_3eb9b6696efabc::t_2a2db5bb7200dc 564
+  s_3eb9b6696efabc::t_1390b96168c81e 189
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutServiceTest.java
+  s_3eb9b6696efabc::t_705af0bd234607 1-206,208-293
+  s_3eb9b6696efabc::t_616dd0f42b0696 207
+backend/src/main/java/com/featureflag/flags/rollout/dto/StartProgressiveRolloutRequest.java
+  s_3eb9b6696efabc::t_27ccc97708342f 7-11,14-26
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_3eb9b6696efabc::t_7a76909c8de59c 30-35,140-149,167,172-176
+backend/src/main/java/com/featureflag/flags/rollout/dto/ProgressiveRolloutResponse.java
+  s_3eb9b6696efabc::t_b98e682cc50824 15-18
+  s_3eb9b6696efabc::t_6c1528818f845e 27-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "555561cb4d23b97d13a3a06ea38ad5fc69b82640",
+  "prompts": {},
+  "sessions": {
+    "s_3eb9b6696efabc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6817b363-dc63-4f4c-b23e-7785dca08c44",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
