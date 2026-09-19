@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useAppState } from "../../shared/state/AppStateContext.jsx";
 import { createFlag } from "../../shared/api/flags.js";
+import Dialog from "../../shared/Dialog.jsx";
+import ErrorBanner from "../../shared/ErrorBanner.jsx";
+import useAction from "../../shared/useAction.js";
+import DependsOnPicker from "./DependsOnPicker.jsx";
 
-const KEY_PATTERN = "[a-z][a-z0-9-]{1,63}";
-const FOCUSABLE_SELECTOR = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])";
+const KEY_PATTERN = "[a-z][a-z0-9\\-]{1,63}";
 
 function defaultVariationsFor(type) {
     if (type === "BOOLEAN") {
@@ -12,20 +15,22 @@ function defaultVariationsFor(type) {
             { key: "false", name: "False", value: "false" },
         ];
     }
-    return [{ key: "", name: "", value: "" }];
+    return [
+        { key: "", name: "", value: "" },
+        { key: "", name: "", value: "" },
+    ];
 }
 
 export default function CreateFlagDialog({ onClose, onCreated }) {
     const { actingAs } = useAppState();
-    const dialogRef = useRef(null);
+    const { busy, error, run } = useAction();
     const [key, setKey] = useState("");
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [owner, setOwner] = useState(actingAs);
     const [type, setType] = useState("BOOLEAN");
     const [variations, setVariations] = useState(() => defaultVariationsFor("BOOLEAN"));
-    const [error, setError] = useState(null);
-    const [submitting, setSubmitting] = useState(false);
+    const [dependsOn, setDependsOn] = useState([]);
 
     const handleTypeChange = (nextType) => {
         setType(nextType);
@@ -39,37 +44,10 @@ export default function CreateFlagDialog({ onClose, onCreated }) {
     const addVariationRow = () => setVariations((prev) => [...prev, { key: "", name: "", value: "" }]);
     const removeVariationRow = (index) => setVariations((prev) => prev.filter((_, i) => i !== index));
 
-    useEffect(() => {
-        const handleKeyDown = (event) => {
-            if (event.key === "Escape") {
-                event.preventDefault();
-                onClose();
-                return;
-            }
-            if (event.key !== "Tab" || !dialogRef.current) return;
-            const focusable = Array.from(dialogRef.current.querySelectorAll(FOCUSABLE_SELECTOR));
-            if (focusable.length === 0) return;
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        };
-        document.addEventListener("keydown", handleKeyDown);
-        return () => document.removeEventListener("keydown", handleKeyDown);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
     const handleSubmit = async (event) => {
         event.preventDefault();
-        setError(null);
-        setSubmitting(true);
-        try {
-            const flag = await createFlag({
+        const { ok, result } = await run(() =>
+            createFlag({
                 key: key.trim(),
                 name: name.trim(),
                 description: description.trim(),
@@ -80,29 +58,17 @@ export default function CreateFlagDialog({ onClose, onCreated }) {
                     name: variation.name.trim(),
                     value: variation.value,
                 })),
-                dependsOn: [],
+                dependsOn,
                 changedBy: actingAs,
-            });
-            onCreated(flag);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setSubmitting(false);
-        }
+            }),
+        );
+        if (ok) onCreated(result);
     };
 
     return (
-        <div className="dialog-overlay" role="presentation" onClick={onClose}>
-            <div
-                ref={dialogRef}
-                className="dialog"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="create-flag-title"
-                onClick={(event) => event.stopPropagation()}
-            >
-                <h2 id="create-flag-title">New flag</h2>
-                <form onSubmit={handleSubmit} className="form">
+        <Dialog title="New flag" onClose={onClose} wide>
+            <form onSubmit={handleSubmit} className="form">
+                <div className="form-grid">
                     <label className="field">
                         <span>Key</span>
                         <input
@@ -112,17 +78,19 @@ export default function CreateFlagDialog({ onClose, onCreated }) {
                             pattern={KEY_PATTERN}
                             title="Lowercase letters, numbers, and hyphens, starting with a letter."
                             required
-                            autoFocus
+                            data-autofocus
                         />
                     </label>
                     <label className="field">
                         <span>Name</span>
                         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Checkout redesign" required />
                     </label>
-                    <label className="field">
-                        <span>Description</span>
-                        <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={2} />
-                    </label>
+                </div>
+                <label className="field">
+                    <span>Description</span>
+                    <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={2} />
+                </label>
+                <div className="form-grid">
                     <label className="field">
                         <span>Owner</span>
                         <input value={owner} onChange={(event) => setOwner(event.target.value)} required />
@@ -134,60 +102,71 @@ export default function CreateFlagDialog({ onClose, onCreated }) {
                             <option value="MULTIVARIATE">Multivariate</option>
                         </select>
                     </label>
+                </div>
 
-                    <div className="field">
-                        <span>Variations</span>
-                        <div className="variation-rows">
-                            {variations.map((variation, index) => (
-                                <div className="variation-row" key={index}>
-                                    <input
-                                        placeholder="key"
-                                        value={variation.key}
-                                        onChange={(event) => updateVariation(index, "key", event.target.value)}
-                                        disabled={type === "BOOLEAN"}
-                                        required
-                                    />
-                                    <input
-                                        placeholder="name"
-                                        value={variation.name}
-                                        onChange={(event) => updateVariation(index, "name", event.target.value)}
-                                        disabled={type === "BOOLEAN"}
-                                        required
-                                    />
-                                    <input
-                                        placeholder="value"
-                                        value={variation.value}
-                                        onChange={(event) => updateVariation(index, "value", event.target.value)}
-                                        disabled={type === "BOOLEAN"}
-                                        required
-                                    />
-                                    {type === "MULTIVARIATE" && variations.length > 1 && (
-                                        <button type="button" className="button button-ghost" onClick={() => removeVariationRow(index)} aria-label="Remove variation">
-                                            ×
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                        {type === "MULTIVARIATE" && (
-                            <button type="button" className="button button-ghost" onClick={addVariationRow}>
-                                Add variation
-                            </button>
-                        )}
+                <fieldset className="field-group">
+                    <legend>Variations</legend>
+                    {type === "BOOLEAN" && <p className="hint">Boolean flags always have exactly two variations, true and false.</p>}
+                    <div className="variation-rows">
+                        {variations.map((variation, index) => (
+                            <div className="variation-row" key={index}>
+                                <input
+                                    placeholder="key"
+                                    aria-label={`Variation ${index + 1} key`}
+                                    value={variation.key}
+                                    onChange={(event) => updateVariation(index, "key", event.target.value)}
+                                    disabled={type === "BOOLEAN"}
+                                    required
+                                />
+                                <input
+                                    placeholder="name"
+                                    aria-label={`Variation ${index + 1} name`}
+                                    value={variation.name}
+                                    onChange={(event) => updateVariation(index, "name", event.target.value)}
+                                    disabled={type === "BOOLEAN"}
+                                    required
+                                />
+                                <input
+                                    placeholder="value"
+                                    aria-label={`Variation ${index + 1} value`}
+                                    value={variation.value}
+                                    onChange={(event) => updateVariation(index, "value", event.target.value)}
+                                    disabled={type === "BOOLEAN"}
+                                    required
+                                />
+                                {type === "MULTIVARIATE" && variations.length > 2 && (
+                                    <button
+                                        type="button"
+                                        className="button button-ghost"
+                                        onClick={() => removeVariationRow(index)}
+                                        aria-label={`Remove variation ${index + 1}`}
+                                    >
+                                        ×
+                                    </button>
+                                )}
+                            </div>
+                        ))}
                     </div>
-
-                    {error && <div className="banner banner-error">{error}</div>}
-
-                    <div className="dialog-actions">
-                        <button type="button" className="button" onClick={onClose}>
-                            Cancel
+                    {type === "MULTIVARIATE" && (
+                        <button type="button" className="button button-ghost" onClick={addVariationRow}>
+                            + Add variation
                         </button>
-                        <button type="submit" className="button button-primary" disabled={submitting}>
-                            {submitting ? "Creating…" : "Create flag"}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                    )}
+                </fieldset>
+
+                <DependsOnPicker selected={dependsOn} onChange={setDependsOn} />
+
+                <ErrorBanner error={error} />
+
+                <div className="dialog-actions">
+                    <button type="button" className="button" onClick={onClose}>
+                        Cancel
+                    </button>
+                    <button type="submit" className="button button-primary" disabled={busy}>
+                        {busy ? "Creating…" : "Create flag"}
+                    </button>
+                </div>
+            </form>
+        </Dialog>
     );
 }

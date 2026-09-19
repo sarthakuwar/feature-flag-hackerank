@@ -7,7 +7,8 @@ import {
     promoteExperiment,
     recordConversion,
 } from "../../shared/api/flags.js";
-import { formatEnumLabel, variationColor } from "../../shared/format.js";
+import ErrorBanner from "../../shared/ErrorBanner.jsx";
+import { formatEnumLabel, pluralize, variationColor } from "../../shared/format.js";
 
 const BANDIT_OPTIONS = [
     { value: "NONE", label: "None (fixed weights)" },
@@ -27,6 +28,8 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
     const [metrics, setMetrics] = useState(null);
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [eventTypeDraft, setEventTypeDraft] = useState("");
+    const [eventType, setEventType] = useState("");
     const [weightsDraft, setWeightsDraft] = useState(() =>
         strategy ? { ...strategy.variationWeights } : evenSplit(flag.variations),
     );
@@ -42,10 +45,10 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
 
     const loadMetrics = useCallback(() => {
         setError(null);
-        getExperimentMetrics(flag.key, environment)
+        getExperimentMetrics(flag.key, environment, eventType)
             .then(setMetrics)
-            .catch((err) => setError(err.message));
-    }, [flag.key, environment]);
+            .catch(setError);
+    }, [flag.key, environment, eventType]);
 
     useEffect(() => {
         setMetrics(null);
@@ -68,7 +71,7 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
             onChanged();
             return true;
         } catch (err) {
-            setError(err.message);
+            setError(err);
             return false;
         } finally {
             setBusy(false);
@@ -117,10 +120,10 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
     };
 
     return (
-        <section className="panel">
-            <h2>Experiment metrics</h2>
+        <section className="panel" aria-labelledby="metrics-heading">
+            <h2 id="metrics-heading">Experiment metrics</h2>
 
-            {error && <div className="banner banner-error">{error}</div>}
+            <ErrorBanner error={error} />
 
             {hasExperiment ? (
                 <p className="meta-line">
@@ -129,6 +132,34 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
                 </p>
             ) : (
                 <p className="hint">No experiment split configured for {formatEnumLabel(environment)} yet. Set variation weights below to start one.</p>
+            )}
+
+            <form
+                className="toolbar"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    setEventType(eventTypeDraft.trim());
+                }}
+            >
+                <label className="field metrics-filter">
+                    <span>Conversion event type</span>
+                    <input
+                        type="search"
+                        value={eventTypeDraft}
+                        onChange={(event) => setEventTypeDraft(event.target.value)}
+                        placeholder="All event types, e.g. purchase"
+                    />
+                </label>
+                <button type="submit" className="button">
+                    Apply filter
+                </button>
+            </form>
+
+            {metrics?.excludedImpressions > 0 && (
+                <p className="hint">
+                    {pluralize(metrics.excludedImpressions, "evaluation")} left out: they came from individual targets or rules that aren’t counted in the
+                    experiment.
+                </p>
             )}
 
             {metrics === null && !error ? (
