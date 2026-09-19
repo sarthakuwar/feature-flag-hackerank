@@ -1,0 +1,95 @@
+frontend/src/App.jsx
+  s_a834399ccae02b::t_0caf033a07f606 2,9,13,35-36,48-52,65-75
+frontend/src/features/applications/ApplicationDetailPage.jsx
+  s_a834399ccae02b::t_53cbbdaeaf8610 1-90
+frontend/src/features/applications/ApplicationsPage.jsx
+  s_a834399ccae02b::t_b5431231c3e981 9,11-12,15-17,79-82,88,110,134,137,162-163,170
+frontend/src/features/flags/DependsOnPicker.jsx
+  s_a834399ccae02b::t_270bc89e792222 1,3,6-8,10-13,15,23-31,37,49
+frontend/src/features/flags/FlagDetailPage.jsx
+  s_a834399ccae02b::t_2158645c7c2496 5-6,10-11,21-23,34-35,37,44,48,51-52,96-106,109,118,151,188,213,289-294,300-315
+frontend/src/features/flags/FlagsListPage.jsx
+  s_a834399ccae02b::t_e05feeac1480cd 1,8,10-12,22-26,51-57,59-63,71-74,77-80,86,154,158,160,163,178,233-234
+frontend/src/features/flags/HistoryTab.jsx
+  s_a834399ccae02b::t_66012b30b916f8 2-7,10-12,15,19-24,44,47,50,61,63,96
+frontend/src/features/flags/IndividualTargetsPanel.jsx
+  s_a834399ccae02b::t_3500d11283bac3 99
+frontend/src/features/flags/MetricsTab.jsx
+  s_a834399ccae02b::t_a133e429995915 1,12-15,28,31-34,36-37,46-53,56,63,66,69,71-75,78-82,84-90,94,110,149,194
+frontend/src/features/flags/RolloutCard.jsx
+  s_a834399ccae02b::t_6974b10c8fb4b2 1-106
+frontend/src/features/flags/RolloutDetailPage.jsx
+  s_a834399ccae02b::t_baf0e873a185d2 1-99
+frontend/src/features/flags/RolloutsTab.jsx
+  s_a834399ccae02b::t_0d383a5598fb4b 6-7,9-10,57-58,130-132
+frontend/src/features/flags/RulesPanel.jsx
+  s_a834399ccae02b::t_2048e55c693764 95
+frontend/src/features/flags/StartRolloutDialog.jsx
+  s_a834399ccae02b::t_3ebf1257638202 8
+frontend/src/features/flags/TargetingTab.jsx
+  s_a834399ccae02b::t_4b774e03304c2a 102
+frontend/src/features/flags/rollouts.js
+  s_a834399ccae02b::t_1df35c1630a185 1-18
+frontend/src/features/flags/useRolloutRefresh.js
+  s_a834399ccae02b::t_e811da2efcc14a 1-24
+frontend/src/features/playground/PlaygroundPage.jsx
+  s_a834399ccae02b::t_890531ec6caa52 10,100,106,149,184-189
+frontend/src/features/segments/SegmentDetailPage.jsx
+  s_a834399ccae02b::t_5b2219f89c5742 87,202,317-319,342
+frontend/src/features/segments/SegmentsPage.jsx
+  s_a834399ccae02b::t_fb52a6244ab04f 25
+frontend/src/shared/ClauseListEditor.jsx
+  s_a834399ccae02b::t_9361e1f38afb8c 3,6,8-11,16
+frontend/src/shared/ContextBuilder.jsx
+  s_a834399ccae02b::t_3516bd15d49b4c 2,23,25-28,35,52,69,82,103-106
+frontend/src/shared/Dialog.jsx
+  s_a834399ccae02b::t_5187aa803eb8af 5-7,15-16,22,44
+frontend/src/shared/ErrorBanner.jsx
+  s_a834399ccae02b::t_14b61b20ac9179 9-10,19-23
+frontend/src/shared/ErrorBoundary.jsx
+  s_a834399ccae02b::t_88fe67fdb263d9 1-27
+frontend/src/shared/Pager.jsx
+  s_a834399ccae02b::t_271d01ecfe1edc 1-21
+frontend/src/shared/api/client.js
+  s_a834399ccae02b::t_c9a6a1a3e61226 3-5,16-45,47-50,52-53
+frontend/src/shared/api/flags.js
+  s_a834399ccae02b::t_89c826a1a13b15 5-12,15-17,56-58,161-164,215-221
+frontend/src/shared/api/stream.js
+  s_a834399ccae02b::t_d9b40ab86f6e12 4-5,7-13,15-18,20-25,27-49,51-53,55-58
+frontend/src/shared/router.jsx
+  s_a834399ccae02b::t_7cdb911672ed9e 1,15-36,39-40,48-55
+frontend/src/shared/state/LiveContext.jsx
+  s_a834399ccae02b::t_0c1ffe2f369ac2 8-9,17,20-21
+frontend/src/shared/useCopied.js
+  s_a834399ccae02b::t_477d22ca490da6 1-17
+frontend/src/shared/useDebouncedCallback.js
+  s_a834399ccae02b::t_e9be23ccb0122c 1-15
+frontend/src/shared/useDebouncedValue.js
+  s_a834399ccae02b::t_0cb218b928c499 1-13
+frontend/src/shared/useDraft.js
+  s_a834399ccae02b::t_77e52c4291664b 1-12
+frontend/src/shared/usePagedList.js
+  s_a834399ccae02b::t_104ab575534734 1-34
+frontend/src/shared/useResource.js
+  s_a834399ccae02b::t_310f266a98ace1 4-5,10,17,20,34
+frontend/src/shared/useRowKeys.js
+  s_a834399ccae02b::t_87e78e179ac923 1-19
+frontend/src/styles.css
+  s_a834399ccae02b::t_9b7a53f638c994 2037-2066
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "5dd4c74121a57a0770c0cca49b9bed27989559fc",
+  "prompts": {},
+  "sessions": {
+    "s_a834399ccae02b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a21944f-9765-4f22-b724-f4e6ae68a582",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
