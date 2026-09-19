@@ -7,6 +7,8 @@
 		"frontend"
 	],
 	"scripts": {
+		"prepare": "bun scripts/install-git-hooks.mjs",
+		"docs:check": "bun scripts/docs-check.mjs",
 		"prestart": "bash setup.sh --start",
 		"start": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
 		"dev:frontend": "cd frontend && bun run dev",

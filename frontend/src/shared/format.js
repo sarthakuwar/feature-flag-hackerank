@@ -7,10 +7,11 @@ export function formatEnumLabel(value) {
         .join(" ");
 }
 
-const VARIATION_COLORS = ["#5ee6a0", "#60a5fa", "#f0b429", "#c084fc", "#f472b6", "#38bdf8"];
+const VARIATION_COLOR_COUNT = 6;
 
 export function variationColor(index) {
-    return VARIATION_COLORS[index % VARIATION_COLORS.length];
+    const slot = index < 0 ? 0 : index % VARIATION_COLOR_COUNT;
+    return `var(--variation-${slot + 1})`;
 }
 
 const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -24,4 +25,34 @@ export function formatRelativeTime(isoString) {
     if (Math.abs(diffHours) < 24) return RELATIVE_TIME_FORMATTER.format(diffHours, "hour");
     const diffDays = Math.round(diffHours / 24);
     return RELATIVE_TIME_FORMATTER.format(diffDays, "day");
+}
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
+
+export function formatDateTime(isoString) {
+    if (!isoString) return "";
+    return DATE_TIME_FORMATTER.format(new Date(isoString));
+}
+
+export function formatDuration(totalMinutes) {
+    if (totalMinutes < 60) return `${totalMinutes} min`;
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+    return [days && `${days} d`, hours && `${hours} h`, minutes && `${minutes} min`].filter(Boolean).join(" ");
+}
+
+export function parseKeyList(text) {
+    return Array.from(
+        new Set(
+            text
+                .split(/[\n,]/)
+                .map((entry) => entry.trim())
+                .filter(Boolean),
+        ),
+    );
+}
+
+export function pluralize(count, singular, plural = `${singular}s`) {
+    return `${count.toLocaleString("en")} ${count === 1 ? singular : plural}`;
 }

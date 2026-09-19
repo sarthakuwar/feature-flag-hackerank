@@ -1,0 +1,9 @@
+#!/bin/sh
+# Blocks a commit when README.md or a CLAUDE.md has drifted from the code.
+# Rules and how to fix each failure: CLAUDE.md, section "Drift guardrails".
+if ! command -v bun >/dev/null 2>&1; then
+    echo "docs:check needs Bun (https://bun.sh). Install it, or skip this once with: git commit --no-verify" >&2
+    exit 1
+fi
+
+exec bun scripts/docs-check.mjs --staged

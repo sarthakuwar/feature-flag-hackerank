@@ -3,3 +3,8 @@
 .editorconfig export-ignore
 GUIDELINES.md export-ignore
 skills/ export-ignore
+CLAUDE.md export-ignore
+scripts/ export-ignore
+.githooks/ export-ignore
+.github/ export-ignore
+.githooks/* text eol=lf
