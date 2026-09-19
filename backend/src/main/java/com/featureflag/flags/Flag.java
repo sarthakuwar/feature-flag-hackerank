@@ -9,11 +9,13 @@ import java.util.Map;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document("flags")
-public class Flag {
+public class Flag implements Persistable<String> {
 
 	@Id
 	private String id;
@@ -38,6 +40,14 @@ public class Flag {
 	/** Other flag keys this flag needs to stay ACTIVE. Archiving a flag other active flags depend on is blocked. */
 	private List<String> dependsOn = new ArrayList<>();
 
+	/**
+	 * Optimistic-lock counter: a save fails with {@code OptimisticLockingFailureException} when the
+	 * stored document changed since it was read. Null on a document written before locking existed;
+	 * {@link #isNew()} keys off the id, not this field, so such a document still updates in place.
+	 */
+	@Version
+	private Long version;
+
 	@CreatedDate
 	private Instant createdAt;
 
@@ -47,8 +57,18 @@ public class Flag {
 	public Flag() {
 	}
 
+	@Override
 	public String getId() {
 		return id;
+	}
+
+	@Override
+	public boolean isNew() {
+		return id == null;
+	}
+
+	public Long getVersion() {
+		return version;
 	}
 
 	public void setId(String id) {

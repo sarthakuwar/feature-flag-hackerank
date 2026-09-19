@@ -3,7 +3,12 @@ package com.featureflag.flags.experiment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -19,11 +24,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 import com.featureflag.flags.BanditAlgorithm;
 import com.featureflag.flags.EnvironmentConfig;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
+import com.featureflag.flags.FlagAccess;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagLifecycle;
 import com.featureflag.flags.FlagRepository;
@@ -32,6 +39,7 @@ import com.featureflag.flags.FlagType;
 import com.featureflag.flags.Strategy;
 import com.featureflag.flags.StrategyType;
 import com.featureflag.flags.Variation;
+import com.featureflag.flags.audit.AuditAction;
 import com.featureflag.flags.audit.AuditService;
 import com.featureflag.flags.metrics.MetricsService;
 import com.featureflag.flags.metrics.dto.ExperimentMetricsResponse;
@@ -62,7 +70,7 @@ class ExperimentServiceTest {
 	@BeforeEach
 	void setUp() {
 		experimentService = new ExperimentService(flagRepository, flagCacheService, flagStreamService, auditService,
-				metricsService, new EpsilonGreedyAllocator(), new ThompsonSamplingAllocator());
+				metricsService, new EpsilonGreedyAllocator(), new ThompsonSamplingAllocator(), new FlagAccess(flagRepository));
 		lenient().when(flagRepository.save(any(Flag.class))).thenAnswer((InvocationOnMock invocation) -> invocation.getArgument(0));
 	}
 
@@ -176,7 +184,74 @@ class ExperimentServiceTest {
 
 		experimentService.reallocateIfBanditEnabled("exp-flag", EnvironmentKey.PRODUCTION);
 
-		org.mockito.Mockito.verify(flagRepository, org.mockito.Mockito.never()).save(any());
+		verify(flagRepository, never()).save(any());
+	}
+
+	@Test
+	void reallocateIfBanditEnabledShiftsWeightTowardTheVariationThatConverts() {
+		Flag flag = banditFlag(BanditAlgorithm.THOMPSON_SAMPLING, null);
+		when(flagRepository.findByKey("exp-flag")).thenReturn(Optional.of(flag));
+		stubMetrics(new VariationMetrics("a", 1000, 10, 0.01, 34), new VariationMetrics("b", 1000, 600, 0.6, 33),
+				new VariationMetrics("c", 1000, 20, 0.02, 33));
+
+		experimentService.reallocateIfBanditEnabled("exp-flag", EnvironmentKey.PRODUCTION);
+
+		Map<String, Integer> weights = experimentStrategy(flag, EnvironmentKey.PRODUCTION).getVariationWeights();
+		assertThat(weights.values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(100);
+		assertThat(weights.get("b")).isGreaterThan(90);
+		verify(flagRepository).save(flag);
+		verify(flagCacheService).put(flag);
+		verify(auditService).record(eq("exp-flag"), eq(AuditAction.REALLOCATE), eq("system:bandit"), anyString());
+		verify(flagStreamService).publishFlagChanged(EnvironmentKey.PRODUCTION, "exp-flag", AuditAction.REALLOCATE.name());
+	}
+
+	@Test
+	void reallocateIfBanditEnabledReloadsTheFlagAndRetriesAfterAnOptimisticLockConflict() {
+		Flag first = banditFlag(BanditAlgorithm.EPSILON_GREEDY, 0.1);
+		Flag second = banditFlag(BanditAlgorithm.EPSILON_GREEDY, 0.1);
+		Flag third = banditFlag(BanditAlgorithm.EPSILON_GREEDY, 0.1);
+		when(flagRepository.findByKey("exp-flag")).thenReturn(Optional.of(first), Optional.of(second), Optional.of(third));
+		when(flagRepository.save(any(Flag.class))).thenThrow(new OptimisticLockingFailureException("stale"))
+				.thenThrow(new OptimisticLockingFailureException("stale")).thenAnswer(invocation -> invocation.getArgument(0));
+		stubMetrics(new VariationMetrics("a", 100, 5, 0.05, 34), new VariationMetrics("b", 100, 40, 0.4, 33),
+				new VariationMetrics("c", 100, 10, 0.1, 33));
+
+		experimentService.reallocateIfBanditEnabled("exp-flag", EnvironmentKey.PRODUCTION);
+
+		verify(flagRepository, times(3)).findByKey("exp-flag");
+		verify(flagRepository, times(3)).save(any(Flag.class));
+		verify(flagCacheService, times(1)).put(third);
+		verify(flagStreamService, times(1)).publishFlagChanged(EnvironmentKey.PRODUCTION, "exp-flag", AuditAction.REALLOCATE.name());
+		assertThat(experimentStrategy(third, EnvironmentKey.PRODUCTION).getVariationWeights().get("b")).isGreaterThan(34);
+	}
+
+	@Test
+	void reallocateIfBanditEnabledGivesUpQuietlyAfterThreeRetries() {
+		when(flagRepository.findByKey("exp-flag"))
+				.thenAnswer(invocation -> Optional.of(banditFlag(BanditAlgorithm.EPSILON_GREEDY, 0.1)));
+		when(flagRepository.save(any(Flag.class))).thenThrow(new OptimisticLockingFailureException("stale"));
+		stubMetrics(new VariationMetrics("a", 100, 5, 0.05, 34), new VariationMetrics("b", 100, 40, 0.4, 33),
+				new VariationMetrics("c", 100, 10, 0.1, 33));
+
+		experimentService.reallocateIfBanditEnabled("exp-flag", EnvironmentKey.PRODUCTION);
+
+		verify(flagRepository, times(4)).save(any(Flag.class));
+		verify(flagCacheService, never()).put(any());
+		verify(auditService, never()).record(any(), any(), any(), any());
+		verify(flagStreamService, never()).publishFlagChanged(any(), any(), any());
+	}
+
+	@Test
+	void reallocateIfBanditEnabledDoesNotSwallowOtherFailures() {
+		Flag flag = banditFlag(BanditAlgorithm.EPSILON_GREEDY, 0.1);
+		when(flagRepository.findByKey("exp-flag")).thenReturn(Optional.of(flag));
+		when(flagRepository.save(any(Flag.class))).thenThrow(new IllegalStateException("mongo is down"));
+		stubMetrics(new VariationMetrics("a", 100, 5, 0.05, 34), new VariationMetrics("b", 100, 40, 0.4, 33),
+				new VariationMetrics("c", 100, 10, 0.1, 33));
+
+		assertThatThrownBy(() -> experimentService.reallocateIfBanditEnabled("exp-flag", EnvironmentKey.PRODUCTION))
+				.isInstanceOf(IllegalStateException.class);
+		verify(flagRepository, times(1)).save(any(Flag.class));
 	}
 
 	@Test
@@ -204,6 +279,18 @@ class ExperimentServiceTest {
 		assertThatThrownBy(
 				() -> experimentService.promoteToFullRollout("exp-flag", EnvironmentKey.PRODUCTION, "does-not-exist", "tester"))
 				.isInstanceOf(ValidationException.class);
+	}
+
+	private Flag banditFlag(BanditAlgorithm algorithm, Double epsilon) {
+		Flag flag = threeVariationFlag("exp-flag");
+		addExperimentStrategy(flag, EnvironmentKey.PRODUCTION, Map.of("a", 34, "b", 33, "c", 33), algorithm, epsilon);
+
+		return flag;
+	}
+
+	private void stubMetrics(VariationMetrics... variations) {
+		when(metricsService.metrics("exp-flag", EnvironmentKey.PRODUCTION, null)).thenReturn(new ExperimentMetricsResponse(
+				"exp-flag", EnvironmentKey.PRODUCTION, List.of(variations), BanditAlgorithm.NONE, null, 0));
 	}
 
 	private Strategy experimentStrategy(Flag flag, EnvironmentKey environment) {

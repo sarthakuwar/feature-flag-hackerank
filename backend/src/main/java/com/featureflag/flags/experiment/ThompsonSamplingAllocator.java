@@ -12,14 +12,18 @@ import com.featureflag.flags.metrics.dto.VariationMetrics;
 /**
  * Thompson sampling over a Beta-Bernoulli posterior per variation, using only {@link Random} - no
  * math/statistics dependency. Each variation's posterior is Beta(alpha = conversions + 1,
- * beta = impressions - conversions + 1) (a Beta(1,1) uniform prior). {@code Random} is injected
- * via constructor so tests can seed it for deterministic assertions; production wiring uses the
- * no-arg constructor.
+ * beta = max(1, impressions - conversions + 1)) (a Beta(1,1) uniform prior). Conversions are
+ * counted per event and never require a prior impression, so they can exceed impressions; beta is
+ * clamped so the shape stays valid. {@code Random} is injected via constructor so tests can seed
+ * it for deterministic assertions; production wiring uses the no-arg constructor.
  */
 @Component
 public class ThompsonSamplingAllocator implements BanditAllocator {
 
 	private static final int MONTE_CARLO_ROUNDS = 2000;
+
+	/** Marsaglia-Tsang accepts about 95% of proposals, so this bound is only reached by a broken random source. */
+	private static final int MAX_GAMMA_ATTEMPTS = 1000;
 
 	private final Random random;
 
@@ -48,8 +52,8 @@ public class ThompsonSamplingAllocator implements BanditAllocator {
 
 			for (int index = 0; index < variationCount; index++) {
 				VariationMetrics candidate = metrics.get(index);
-				double alpha = candidate.conversions() + 1.0;
-				double beta = (candidate.impressions() - candidate.conversions()) + 1.0;
+				double alpha = Math.max(1.0, candidate.conversions() + 1.0);
+				double beta = Math.max(1.0, (double) candidate.impressions() - candidate.conversions() + 1.0);
 				double sample = sampleBeta(alpha, beta);
 
 				if (sample > winnerSample) {
@@ -83,27 +87,31 @@ public class ThompsonSamplingAllocator implements BanditAllocator {
 	private double sampleBeta(double alpha, double beta) {
 		double x = sampleGamma(alpha);
 		double y = sampleGamma(beta);
+		double total = x + y;
 
-		return x / (x + y);
+		if (!(total > 0) || Double.isInfinite(total)) {
+			return alpha / (alpha + beta);
+		}
+
+		return x / total;
 	}
 
 	/**
-	 * Marsaglia-Tsang method, valid for shape >= 1 - always true here since alpha = conversions + 1
-	 * and beta = impressions - conversions + 1 are both at least 1 (impressions is never less than
-	 * conversions), so the shape < 1 boost trick is never needed.
+	 * Marsaglia-Tsang method, valid for shape >= 1; callers clamp alpha and beta to at least 1, so the
+	 * shape < 1 boost trick is never needed. The loop is bounded and falls back to the distribution's
+	 * mean (equal to the shape) so a degenerate input can never spin a request thread.
 	 */
 	private double sampleGamma(double shape) {
 		double d = shape - 1.0 / 3.0;
 		double c = 1.0 / Math.sqrt(9.0 * d);
 
-		while (true) {
-			double x;
-			double v;
+		for (int attempt = 0; attempt < MAX_GAMMA_ATTEMPTS; attempt++) {
+			double x = random.nextGaussian();
+			double v = 1.0 + c * x;
 
-			do {
-				x = random.nextGaussian();
-				v = 1.0 + c * x;
-			} while (v <= 0);
+			if (v <= 0) {
+				continue;
+			}
 
 			v = v * v * v;
 			double u = random.nextDouble();
@@ -117,5 +125,7 @@ public class ThompsonSamplingAllocator implements BanditAllocator {
 				return d * v;
 			}
 		}
+
+		return shape;
 	}
 }

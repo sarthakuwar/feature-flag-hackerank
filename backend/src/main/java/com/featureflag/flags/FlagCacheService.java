@@ -13,11 +13,13 @@ import org.springframework.stereotype.Service;
  * per request. Refreshed synchronously on every write in the same process.
  */
 @Service
-public class FlagCacheService {
+public class FlagCacheService implements FlagLookup {
 
 	private final FlagRepository flagRepository;
 
 	private final ConcurrentHashMap<String, Flag> flagsByKey = new ConcurrentHashMap<>();
+
+	private volatile boolean loaded;
 
 	public FlagCacheService(FlagRepository flagRepository) {
 		this.flagRepository = flagRepository;
@@ -27,12 +29,19 @@ public class FlagCacheService {
 	public void load() {
 		flagsByKey.clear();
 		flagRepository.findAll().forEach(flag -> flagsByKey.put(flag.getKey(), flag));
+		loaded = true;
+	}
+
+	/** True once {@link #load()} has read every flag, so readiness can tell an empty cache from an unloaded one. */
+	public boolean isLoaded() {
+		return loaded;
 	}
 
 	public void put(Flag flag) {
 		flagsByKey.put(flag.getKey(), flag);
 	}
 
+	@Override
 	public Optional<Flag> get(String key) {
 		return Optional.ofNullable(flagsByKey.get(key));
 	}

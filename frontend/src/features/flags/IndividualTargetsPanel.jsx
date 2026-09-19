@@ -96,7 +96,7 @@ export default function IndividualTargetsPanel({ flag, environment, targeting, r
                     {notice}
                 </div>
             )}
-            <ErrorBanner error={error} />
+            <ErrorBanner error={error} onReload={onChanged} />
 
             {entries.length === 0 ? (
                 <p className="hint">No individual targets yet.</p>

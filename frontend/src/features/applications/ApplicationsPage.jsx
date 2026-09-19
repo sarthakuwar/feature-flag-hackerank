@@ -6,9 +6,14 @@ import { createApplication, deleteApplication, listApplications, updateApplicati
 import ConfirmDialog from "../../shared/ConfirmDialog.jsx";
 import Dialog from "../../shared/Dialog.jsx";
 import ErrorBanner from "../../shared/ErrorBanner.jsx";
+import Pager from "../../shared/Pager.jsx";
 import useAction from "../../shared/useAction.js";
-import useResource from "../../shared/useResource.js";
+import useDebouncedCallback from "../../shared/useDebouncedCallback.js";
+import usePagedList from "../../shared/usePagedList.js";
 import { formatRelativeTime } from "../../shared/format.js";
+
+const PAGE_SIZE = 25;
+const LIVE_RELOAD_DELAY_MS = 300;
 
 function ApplicationDialog({ application, onClose, onSaved }) {
     const { actingAs } = useAppState();
@@ -71,14 +76,16 @@ export default function ApplicationsPage() {
     const [deleting, setDeleting] = useState(null);
     const headingRef = useRef(null);
 
-    const { data: applications, error, reload } = useResource(() => listApplications(), []);
-    useLiveEvents((event) => event.type === "application-changed" && reload());
+    const list = usePagedList(({ page, limit }) => listApplications({ page, limit }), [], PAGE_SIZE);
+    const { items: applications, error } = list;
+    const scheduleReload = useDebouncedCallback(list.reload, LIVE_RELOAD_DELAY_MS);
+    useLiveEvents((event) => (event.type === "application-changed" || event.type === "resync") && scheduleReload());
 
     const confirmDelete = async () => {
         const { ok } = await run(() => deleteApplication(deleting.key, actingAs));
         if (ok) {
             setDeleting(null);
-            reload();
+            list.reload();
             headingRef.current?.focus();
         }
     };
@@ -100,7 +107,7 @@ export default function ApplicationsPage() {
                 </button>
             </header>
 
-            <ErrorBanner error={error} />
+            <ErrorBanner error={error} onReload={list.reload} />
 
             {applications === null && !error ? (
                 <div className="empty-state">Loading applications…</div>
@@ -124,10 +131,10 @@ export default function ApplicationsPage() {
                                 {applications.map((application) => (
                                     <tr key={application.key}>
                                         <td>
-                                            <div className="flag-cell">
+                                            <Link to={`/applications/${encodeURIComponent(application.key)}`} className="flag-cell">
                                                 <span className="flag-name">{application.name}</span>
                                                 <code className="flag-key">{application.key}</code>
-                                            </div>
+                                            </Link>
                                         </td>
                                         <td>
                                             <code className="flag-key">{application.minSupportedVersion}</code>
@@ -152,13 +159,15 @@ export default function ApplicationsPage() {
                 )
             )}
 
+            <Pager meta={list.meta} onPageChange={list.setPage} label="Applications pages" />
+
             {editing && (
                 <ApplicationDialog
                     application={editing.key ? editing : null}
                     onClose={() => setEditing(null)}
                     onSaved={() => {
                         setEditing(null);
-                        reload();
+                        list.reload();
                     }}
                 />
             )}

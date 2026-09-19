@@ -4,9 +4,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,14 +21,16 @@ import com.featureflag.flags.targeting.TargetingRule;
 
 /**
  * Flag evaluation is a pure function: (flag definition, environment, user context) -> variation.
- * Order: (1) environment enabled check, (2) individual targets, (3) targeting rules in list order
- * (disabled rules skipped; all of a rule's clauses must match, and it serves a fixed variation or a
- * percentage rollout), (4) the environment's strategies, in priority order. USER_ID/ATTRIBUTE
+ * Order: (1) environment enabled check, (2) prerequisites (every flag in {@code dependsOn} must be
+ * active and enabled in this environment, and so must its own prerequisites; otherwise the off
+ * variation is served with PREREQUISITE_FAILED), (3) individual targets, (4) targeting rules in list
+ * order (disabled rules skipped; all of a rule's clauses must match, and it serves a fixed variation
+ * or a percentage rollout), (5) the environment's strategies, in priority order. USER_ID/ATTRIBUTE
  * strategies resolve immediately on a match; a PERCENTAGE_ROLLOUT strategy resolves only if the
  * stable-hash bucket falls under its percentage, otherwise evaluation falls through to the next
  * strategy. If nothing resolves it, the environment's offVariationKey is served. Segments and the
- * mobile application registry are read from an in-memory {@link TargetingLookup}: no I/O, no side
- * effects, so it stays sub-millisecond.
+ * mobile application registry are read from an in-memory {@link TargetingLookup} and prerequisite
+ * flags from an in-memory {@link FlagLookup}: no I/O, no side effects, so it stays sub-millisecond.
  *
  * <p>A targeting rule (step 3) or strategy (step 4) with an ACTIVE progressive rollout resolves in
  * two steps: its normal audience check first, then the user's stable-hash bucket against the
@@ -39,14 +44,27 @@ public class FlagEvaluationService {
 
 	private static final int BUCKET_COUNT = 100;
 
+	/** Anything deeper than this chain of prerequisites is treated as unmet, so a bad graph can never run away. */
+	private static final int MAX_PREREQUISITE_DEPTH = 10;
+
+	private static final String ANONYMOUS_BUCKETING_ID = "anonymous";
+
 	private final ClauseMatcher clauseMatcher;
+
+	private final FlagLookup flagLookup;
 
 	private final Clock clock;
 
 	@Autowired
-	public FlagEvaluationService(TargetingLookup targetingLookup, Clock clock) {
+	public FlagEvaluationService(TargetingLookup targetingLookup, FlagLookup flagLookup, Clock clock) {
 		this.clauseMatcher = new ClauseMatcher(targetingLookup);
+		this.flagLookup = flagLookup;
 		this.clock = clock;
+	}
+
+	/** No prerequisite flags are known, so any flag that has prerequisites fails them. */
+	public FlagEvaluationService(TargetingLookup targetingLookup, Clock clock) {
+		this(targetingLookup, FlagLookup.EMPTY, clock);
 	}
 
 	/** Real clock, with the given segment/application store. */
@@ -64,17 +82,42 @@ public class FlagEvaluationService {
 		this(TargetingLookup.EMPTY, Clock.systemUTC());
 	}
 
+	/** An evaluation together with the user's bucket for the flag, hashed at most once. */
+	public record BucketedEvaluation(EvaluationResult result, int bucket) {
+	}
+
 	public EvaluationResult evaluate(Flag flag, EnvironmentKey environment, UserContext userContext) {
+		return evaluate(flag, environment, userContext, new LazyBucket(flag.getKey(), userContext));
+	}
+
+	/**
+	 * Same result as {@link #evaluate}, plus the bucket the impression records. The bucket is hashed
+	 * once and shared with the evaluation itself, instead of once more by the caller.
+	 */
+	public BucketedEvaluation evaluateWithBucket(Flag flag, EnvironmentKey environment, UserContext userContext) {
+		LazyBucket bucket = new LazyBucket(flag.getKey(), userContext);
+		EvaluationResult result = evaluate(flag, environment, userContext, bucket);
+
+		return new BucketedEvaluation(result, bucket.get());
+	}
+
+	private EvaluationResult evaluate(Flag flag, EnvironmentKey environment, UserContext userContext, LazyBucket bucket) {
 		EnvironmentConfig config = flag.getEnvironments().get(environment);
 
 		if (config == null || !config.isEnabled()) {
 			String offVariationKey = config == null ? fallbackVariationKey(flag) : config.getOffVariationKey();
 
-			return EvaluationResult.of(flag.getKey(), offVariationKey, valueOf(flag, offVariationKey),
-					EvaluationReason.FLAG_DISABLED);
+			return EvaluationResult.flagDisabled(flag.getKey(), offVariationKey, valueOf(flag, offVariationKey));
 		}
 
-		EvaluationResult targeted = evaluateTargeting(flag, config, environment, userContext);
+		String failedPrerequisite = firstFailedPrerequisite(flag, environment);
+
+		if (failedPrerequisite != null) {
+			return EvaluationResult.prerequisiteFailed(flag.getKey(), config.getOffVariationKey(),
+					valueOf(flag, config.getOffVariationKey()), failedPrerequisite);
+		}
+
+		EvaluationResult targeted = evaluateTargeting(flag, config, environment, userContext, bucket);
 
 		if (targeted != null) {
 			return targeted;
@@ -82,29 +125,27 @@ public class FlagEvaluationService {
 
 		for (Strategy strategy : config.orderedStrategies()) {
 			if (strategy.getType() == StrategyType.PERCENTAGE_ROLLOUT) {
-				int bucket = bucketFor(flag.getKey(), userContext);
+				int userBucket = bucket.get();
 
-				if (bucket < strategy.getPercentage()) {
+				if (userBucket < strategy.getPercentage()) {
 					Optional<ProgressiveRollout> progressive = config.activeRolloutFor(strategy.getId());
 
 					if (progressive.isPresent()) {
-						return progressiveResult(flag, strategy, progressive.get(), bucket);
+						return progressiveResult(flag, strategy, progressive.get(), userBucket);
 					}
 
-					return EvaluationResult.of(flag.getKey(), strategy.getServedVariationKey(),
-							valueOf(flag, strategy.getServedVariationKey()), EvaluationReason.ROLLOUT_ENABLED);
+					return EvaluationResult.rolloutEnabled(flag.getKey(), strategy.getServedVariationKey(),
+							valueOf(flag, strategy.getServedVariationKey()));
 				}
 			} else if (strategy.getType() == StrategyType.EXPERIMENT_SPLIT) {
-				int bucket = bucketFor(flag.getKey(), userContext);
-				String variationKey = resolveWeightedVariation(flag, strategy.getVariationWeights(), bucket);
+				String variationKey = resolveWeightedVariation(flag, strategy.getVariationWeights(), bucket.get());
 
-				return EvaluationResult.of(flag.getKey(), variationKey, valueOf(flag, variationKey),
-						EvaluationReason.EXPERIMENT_ASSIGNED);
+				return EvaluationResult.experimentAssigned(flag.getKey(), variationKey, valueOf(flag, variationKey));
 			} else if (strategy.matches(userContext)) {
 				Optional<ProgressiveRollout> progressive = config.activeRolloutFor(strategy.getId());
 
 				if (progressive.isPresent()) {
-					return progressiveResult(flag, strategy, progressive.get(), bucketFor(flag.getKey(), userContext));
+					return progressiveResult(flag, strategy, progressive.get(), bucket.get());
 				}
 
 				return EvaluationResult.strategyMatch(flag.getKey(), strategy.getServedVariationKey(),
@@ -112,13 +153,72 @@ public class FlagEvaluationService {
 			}
 		}
 
-		return EvaluationResult.of(flag.getKey(), config.getOffVariationKey(), valueOf(flag, config.getOffVariationKey()),
-				EvaluationReason.FALLTHROUGH);
+		return EvaluationResult.fallthrough(flag.getKey(), config.getOffVariationKey(), valueOf(flag, config.getOffVariationKey()));
+	}
+
+	/** The first key in {@code dependsOn} whose flag is not met in this environment, or null when all are. */
+	private String firstFailedPrerequisite(Flag flag, EnvironmentKey environment) {
+		List<String> prerequisites = flag.getDependsOn();
+
+		if (prerequisites == null || prerequisites.isEmpty()) {
+			return null;
+		}
+
+		Set<String> path = new HashSet<>();
+		path.add(flag.getKey());
+		Map<String, Boolean> resolved = new HashMap<>();
+
+		for (String prerequisiteKey : prerequisites) {
+			if (!prerequisiteMet(prerequisiteKey, environment, path, resolved)) {
+				return prerequisiteKey;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * A prerequisite is met when its flag exists, is ACTIVE, is enabled in the evaluated environment,
+	 * and all of its own prerequisites are met. Validation only forbids a flag depending on itself, so
+	 * longer cycles can exist in stored data: a flag already on the current path, or a chain deeper
+	 * than {@link #MAX_PREREQUISITE_DEPTH}, counts as unmet. A cycle is unmet from every entry point,
+	 * so remembering results per evaluation is safe.
+	 */
+	private boolean prerequisiteMet(String key, EnvironmentKey environment, Set<String> path, Map<String, Boolean> resolved) {
+		if (key == null || path.contains(key) || path.size() > MAX_PREREQUISITE_DEPTH) {
+			return false;
+		}
+
+		Boolean known = resolved.get(key);
+
+		if (known != null) {
+			return known;
+		}
+
+		boolean met = flagLookup.get(key).map(prerequisite -> {
+			EnvironmentConfig prerequisiteConfig = prerequisite.getEnvironments().get(environment);
+
+			if (prerequisite.getLifecycle() != FlagLifecycle.ACTIVE || prerequisiteConfig == null
+					|| !prerequisiteConfig.isEnabled()) {
+				return false;
+			}
+
+			path.add(key);
+			boolean nestedMet = prerequisite.getDependsOn() == null || prerequisite.getDependsOn().stream()
+					.allMatch(nestedKey -> prerequisiteMet(nestedKey, environment, path, resolved));
+			path.remove(key);
+
+			return nestedMet;
+		}).orElse(false);
+
+		resolved.put(key, met);
+
+		return met;
 	}
 
 	/** Individual targets, then targeting rules; null when neither resolves and evaluation should continue. */
 	private EvaluationResult evaluateTargeting(Flag flag, EnvironmentConfig config, EnvironmentKey environment,
-			UserContext userContext) {
+			UserContext userContext, LazyBucket bucket) {
 		for (IndividualTarget target : config.getIndividualTargets()) {
 			ContextEntry entry = userContext == null ? null : userContext.contextOfKind(target.getContextKind());
 
@@ -141,14 +241,14 @@ public class FlagEvaluationService {
 				Optional<ProgressiveRollout> progressive = config.activeRolloutForRule(rule.getId());
 
 				if (progressive.isPresent()) {
-					String rampedKey = rolloutVariation(progressive.get(), bucketFor(flag.getKey(), userContext));
+					String rampedKey = rolloutVariation(progressive.get(), bucket.get());
 
 					return EvaluationResult.progressiveRuleRollout(flag.getKey(), rampedKey, valueOf(flag, rampedKey), rule.getId());
 				}
 			}
 
 			String variationKey = rule.servesRollout()
-					? resolveWeightedVariation(flag, rule.getRolloutWeights(), bucketFor(flag.getKey(), userContext))
+					? resolveWeightedVariation(flag, rule.getRolloutWeights(), bucket.get())
 					: rule.getServedVariationKey();
 
 			return EvaluationResult.ruleMatch(flag.getKey(), variationKey, valueOf(flag, variationKey), rule.getId(),
@@ -182,8 +282,7 @@ public class FlagEvaluationService {
 	 * "hash the flag key and user ID" rule, rather than being salted per-strategy.
 	 */
 	public int bucketFor(String flagKey, UserContext userContext) {
-		String bucketingId = userContext == null || userContext.userId() == null ? "anonymous" : userContext.userId();
-		String input = flagKey + ":" + bucketingId;
+		String input = flagKey + ":" + bucketingIdOf(userContext);
 
 		try {
 			MessageDigest digest = MessageDigest.getInstance("MD5");
@@ -196,6 +295,29 @@ public class FlagEvaluationService {
 		} catch (NoSuchAlgorithmException exception) {
 			throw new IllegalStateException("MD5 is not available on this JVM.", exception);
 		}
+	}
+
+	/**
+	 * The user id when there is one. A caller without a user id (an organization or device context
+	 * only) is bucketed by the first non-blank context key, taking kinds in alphabetical order because
+	 * the contexts map has no stable iteration order; only a caller with no key at all shares the
+	 * "anonymous" bucket.
+	 */
+	private String bucketingIdOf(UserContext userContext) {
+		if (userContext == null) {
+			return ANONYMOUS_BUCKETING_ID;
+		}
+
+		if (userContext.userId() != null && !userContext.userId().isBlank()) {
+			return userContext.userId();
+		}
+
+		return userContext.contexts().entrySet().stream()
+				.sorted(Map.Entry.comparingByKey())
+				.map(entry -> entry.getValue().key())
+				.filter(key -> key != null && !key.isBlank())
+				.findFirst()
+				.orElse(ANONYMOUS_BUCKETING_ID);
 	}
 
 	/**
@@ -232,5 +354,28 @@ public class FlagEvaluationService {
 		List<Variation> variations = flag.getVariations();
 
 		return Optional.ofNullable(variations.isEmpty() ? null : variations.get(0)).map(Variation::getKey).orElse(null);
+	}
+
+	/** Defers the MD5 until an evaluation step needs the bucket, then reuses it for the rest of that evaluation. */
+	private final class LazyBucket {
+
+		private final String flagKey;
+
+		private final UserContext userContext;
+
+		private int value = -1;
+
+		private LazyBucket(String flagKey, UserContext userContext) {
+			this.flagKey = flagKey;
+			this.userContext = userContext;
+		}
+
+		private int get() {
+			if (value < 0) {
+				value = bucketFor(flagKey, userContext);
+			}
+
+			return value;
+		}
 	}
 }

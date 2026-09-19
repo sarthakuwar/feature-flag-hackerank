@@ -52,8 +52,28 @@ public final class RolloutSchedule {
 
 		List<RolloutStage> resolved = new ArrayList<>();
 
-		for (RolloutStageRequest stage : stages) {
-			resolved.add(new RolloutStage(stage.percentage(), stage.offsetMinutes()));
+		boolean complete = true;
+
+		for (int index = 0; index < stages.size(); index++) {
+			RolloutStageRequest stage = stages.get(index);
+
+			if (stage == null || stage.percentage() == null) {
+				errors.add("stages[" + index + "].percentage", "Percentage is required.");
+				complete = false;
+			}
+
+			if (stage == null || stage.offsetMinutes() == null) {
+				errors.add("stages[" + index + "].offsetMinutes", "Offset in minutes is required.");
+				complete = false;
+			}
+
+			if (complete) {
+				resolved.add(new RolloutStage(stage.percentage(), stage.offsetMinutes()));
+			}
+		}
+
+		if (!complete) {
+			return List.of();
 		}
 
 		validate(resolved, errors);

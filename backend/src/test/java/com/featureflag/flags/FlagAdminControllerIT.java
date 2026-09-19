@@ -2,8 +2,10 @@ package com.featureflag.flags;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,7 +19,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
+import com.featureflag.flags.audit.AuditEvent;
 import com.featureflag.flags.audit.AuditRepository;
 import com.featureflag.flags.dto.ActingRequest;
 import com.featureflag.flags.dto.BulkKeysRequest;
@@ -338,6 +343,97 @@ class FlagAdminControllerIT {
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 	}
 
+	@Test
+	void anUnknownLifecycleFilterIsABadRequestNamingTheParameterNotAServerError() {
+		ResponseEntity<Map> response = restTemplate.getForEntity("/api/v1/flags?lifecycle=bogus", Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		Map<String, Object> error = (Map<String, Object>) response.getBody().get("error");
+		assertThat(error.get("code")).isEqualTo("VALIDATION_ERROR");
+		Map<String, Object> fieldErrors = (Map<String, Object>) ((Map<String, Object>) error.get("details")).get("fieldErrors");
+		assertThat(fieldErrors).containsOnlyKeys("lifecycle");
+		assertThat(fieldErrors.get("lifecycle").toString()).contains("ACTIVE", "ARCHIVED").doesNotContain("bogus");
+	}
+
+	@Test
+	void anUnknownEnvironmentInThePathIsABadRequestNamingTheParameter() {
+		createFlag("env-flag");
+
+		ResponseEntity<Map> response = restTemplate.exchange("/api/v1/flags/env-flag/environments/BOGUS", HttpMethod.PATCH,
+				new HttpEntity<>(new EnvironmentConfigRequest(true, "off", List.of(), "tester")), Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		Map<String, Object> error = (Map<String, Object>) response.getBody().get("error");
+		Map<String, Object> fieldErrors = (Map<String, Object>) ((Map<String, Object>) error.get("details")).get("fieldErrors");
+		assertThat(fieldErrors).containsOnlyKeys("environment");
+	}
+
+	@Test
+	void omittingEnabledOnAnEnvironmentUpdateIsRejectedAndLeavesTheEnvironmentAlone() {
+		createFlag("toggle-flag");
+		restTemplate.exchange("/api/v1/flags/toggle-flag/environments/PRODUCTION", HttpMethod.PATCH,
+				new HttpEntity<>(new EnvironmentConfigRequest(true, "off", List.of(), "tester")), Map.class);
+
+		ResponseEntity<Map> response = restTemplate.exchange("/api/v1/flags/toggle-flag/environments/PRODUCTION", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("offVariationKey", "off", "strategies", List.of(), "changedBy", "tester")), Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		Map<String, Object> error = (Map<String, Object>) response.getBody().get("error");
+		Map<String, Object> fieldErrors = (Map<String, Object>) ((Map<String, Object>) error.get("details")).get("fieldErrors");
+		assertThat(fieldErrors).containsOnlyKeys("enabled");
+		assertThat(flagRepository.findByKey("toggle-flag").orElseThrow().getEnvironments().get(EnvironmentKey.PRODUCTION).isEnabled())
+				.isTrue();
+	}
+
+	@Test
+	void archiveAndRestoreWithoutChangedByAreBadRequestsAndChangeNothing() {
+		createFlag("audited-flag");
+
+		ResponseEntity<Map> archive = restTemplate.postForEntity("/api/v1/flags/audited-flag/archive", Map.of(), Map.class);
+
+		assertThat(archive.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(flagRepository.findByKey("audited-flag").orElseThrow().getLifecycle()).isEqualTo(FlagLifecycle.ACTIVE);
+
+		restTemplate.postForEntity("/api/v1/flags/audited-flag/archive", new ActingRequest("tester"), Map.class);
+		ResponseEntity<Map> restore = restTemplate.postForEntity("/api/v1/flags/audited-flag/restore", Map.of(), Map.class);
+
+		assertThat(restore.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(flagRepository.findByKey("audited-flag").orElseThrow().getLifecycle()).isEqualTo(FlagLifecycle.ARCHIVED);
+		assertThat(auditHistory("audited-flag")).allSatisfy(event -> assertThat(event.getChangedBy())
+				.isNotBlank());
+	}
+
+	@Test
+	void bulkArchiveWithANullKeyOrTooManyKeysIsABadRequest() {
+		createFlag("bulk-flag");
+		List<String> withNull = new ArrayList<>(List.of("bulk-flag"));
+		withNull.add(null);
+		List<String> tooMany = IntStream.rangeClosed(0, 100).mapToObj(index -> "flag-" + index).toList();
+
+		for (String url : List.of("/api/v1/flags/bulk-archive", "/api/v1/flags/bulk-restore", "/api/v1/flags/bulk-archive/validate")) {
+			ResponseEntity<Map> nullKey = restTemplate.postForEntity(url, new BulkKeysRequest(withNull, "tester"), Map.class);
+			ResponseEntity<Map> overLimit = restTemplate.postForEntity(url, new BulkKeysRequest(tooMany, "tester"), Map.class);
+
+			assertThat(nullKey.getStatusCode()).as(url).isEqualTo(HttpStatus.BAD_REQUEST);
+			assertThat(overLimit.getStatusCode()).as(url).isEqualTo(HttpStatus.BAD_REQUEST);
+		}
+
+		assertThat(flagRepository.findByKey("bulk-flag").orElseThrow().getLifecycle()).isEqualTo(FlagLifecycle.ACTIVE);
+	}
+
+	@Test
+	void creatingAnExistingKeyAgainIsIdempotentOverHttp() {
+		createFlag("twice-flag");
+
+		ResponseEntity<Map> again = restTemplate.postForEntity("/api/v1/flags", new FlagCreateRequest("twice-flag", "twice-flag", "desc",
+				FlagType.BOOLEAN, "owner",
+				List.of(new VariationRequest("off", "Off", "false"), new VariationRequest("on", "On", "true")), List.of(), "tester"),
+				Map.class);
+
+		assertThat(again.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+		assertThat(flagRepository.count()).isEqualTo(1);
+	}
+
 	private StrategyRequest rolloutStrategy(int percentage, String servedVariationKey) {
 		return new StrategyRequest(null, StrategyType.PERCENTAGE_ROLLOUT, List.of(), null, null, percentage, servedVariationKey);
 	}
@@ -356,5 +452,9 @@ class FlagAdminControllerIT {
 				"tester");
 
 		restTemplate.postForEntity("/api/v1/flags", request, Map.class);
+	}
+
+	private List<AuditEvent> auditHistory(String flagKey) {
+		return auditRepository.findByFlagKey(flagKey, PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "changedAt"))).getContent();
 	}
 }

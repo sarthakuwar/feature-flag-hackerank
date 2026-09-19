@@ -2,10 +2,13 @@ import { useRef, useState } from "react";
 import { Link, navigate } from "../../shared/router.jsx";
 import { useAppState } from "../../shared/state/AppStateContext.jsx";
 import { useLiveEvents } from "../../shared/state/LiveContext.jsx";
-import { archiveFlag, getAudit, getFlag, getTargeting, listRollouts, listSegments, restoreFlag } from "../../shared/api/flags.js";
+import { archiveFlag, getFlag, getTargeting, listRollouts, listSegments, restoreFlag } from "../../shared/api/flags.js";
+import ConfirmDialog from "../../shared/ConfirmDialog.jsx";
 import ErrorBanner from "../../shared/ErrorBanner.jsx";
 import TabList, { tabPanelProps } from "../../shared/TabList.jsx";
 import useAction from "../../shared/useAction.js";
+import useCopied from "../../shared/useCopied.js";
+import useDebouncedCallback from "../../shared/useDebouncedCallback.js";
 import useResource from "../../shared/useResource.js";
 import { formatEnumLabel, formatRelativeTime } from "../../shared/format.js";
 import EditFlagDialog from "./EditFlagDialog.jsx";
@@ -14,6 +17,9 @@ import MetricsTab from "./MetricsTab.jsx";
 import RolloutsTab from "./RolloutsTab.jsx";
 import TargetingTab from "./TargetingTab.jsx";
 import VariationsTab from "./VariationsTab.jsx";
+
+// A write reloads the page itself and the server also announces it on the live stream; reloads this close together run once.
+const RELOAD_DELAY_MS = 200;
 
 const EMPTY_ENV_CONFIG = { enabled: false, offVariationKey: null, strategies: [] };
 const EMPTY_TARGETING = {
@@ -25,26 +31,25 @@ const EMPTY_TARGETING = {
 export default function FlagDetailPage({ flagKey, tab }) {
     const { environment, environments, actingAs } = useAppState();
     const [editOpen, setEditOpen] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const [archiveOpen, setArchiveOpen] = useState(false);
+    const [copied, flashCopied] = useCopied();
     const titleRef = useRef(null);
-    const { busy, error: actionError, run } = useAction();
+    const { busy, error: actionError, setError: setActionError, run } = useAction();
 
     const flagRes = useResource(() => getFlag(flagKey), [flagKey]);
-    const auditRes = useResource(() => getAudit(flagKey), [flagKey]);
     const targetingRes = useResource(() => getTargeting(flagKey, environment), [flagKey, environment]);
     const rolloutsRes = useResource(() => listRollouts(flagKey, environment), [flagKey, environment]);
     const segmentsRes = useResource(() => listSegments(environment), [environment]);
 
-    const reloadAll = () => {
+    const reloadAll = useDebouncedCallback(() => {
         flagRes.reload();
-        auditRes.reload();
         targetingRes.reload();
         rolloutsRes.reload();
-    };
+    }, RELOAD_DELAY_MS);
 
     useLiveEvents((event) => {
-        if (event.type === "flag-changed" && event.flagKey === flagKey) reloadAll();
-        if (event.type === "segment-changed") segmentsRes.reload();
+        if (event.type === "resync" || (event.type === "flag-changed" && event.flagKey === flagKey)) reloadAll();
+        if (event.type === "resync" || event.type === "segment-changed") segmentsRes.reload();
     });
 
     const flag = flagRes.data;
@@ -88,9 +93,20 @@ export default function FlagDetailPage({ flagKey, tab }) {
         { id: "history", label: "History" },
     ];
 
-    const handleArchiveToggle = async () => {
+    const openArchive = () => {
+        setActionError(null);
+        setArchiveOpen(true);
+    };
+
+    const closeArchive = () => {
+        setActionError(null);
+        setArchiveOpen(false);
+    };
+
+    const toggleLifecycle = async () => {
         const { ok } = await run(() => (flag.lifecycle === "ACTIVE" ? archiveFlag(flagKey, actingAs) : restoreFlag(flagKey, actingAs)));
         if (ok) {
+            setArchiveOpen(false);
             reloadAll();
             titleRef.current?.focus();
         }
@@ -99,8 +115,7 @@ export default function FlagDetailPage({ flagKey, tab }) {
     const copyKey = async () => {
         try {
             await navigator.clipboard.writeText(flag.key);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
+            flashCopied();
         } catch {
             // Clipboard access can be blocked by permissions; the key is still visible to select manually.
         }
@@ -133,7 +148,7 @@ export default function FlagDetailPage({ flagKey, tab }) {
                 )}
             </header>
 
-            <ErrorBanner error={actionError || targetingRes.error || rolloutsRes.error} />
+            <ErrorBanner error={(!archiveOpen && actionError) || targetingRes.error || rolloutsRes.error} onReload={reloadAll} />
             {readOnly && <div className="banner banner-muted">This flag is archived. Restore it to make changes.</div>}
 
             <div className="detail-layout">
@@ -170,6 +185,7 @@ export default function FlagDetailPage({ flagKey, tab }) {
                                     rollouts={rollouts}
                                     readOnly={readOnly}
                                     onChanged={reloadAll}
+                                    onRefresh={reloadAll}
                                 />
                             ) : (
                                 <div className="empty-state">Loading rollouts…</div>
@@ -194,7 +210,7 @@ export default function FlagDetailPage({ flagKey, tab }) {
                     </div>
 
                     <div {...tabPanelProps("history", activeTab)} className="tab-panel">
-                        {activeTab === "history" && <HistoryTab audit={auditRes.data} />}
+                        {activeTab === "history" && <HistoryTab flagKey={flagKey} />}
                     </div>
                 </div>
 
@@ -270,11 +286,32 @@ export default function FlagDetailPage({ flagKey, tab }) {
                         <p>{formatRelativeTime(flag.updatedAt)}</p>
                     </div>
 
-                    <button type="button" className="button button-ghost" disabled={busy} onClick={handleArchiveToggle}>
+                    <button
+                        type="button"
+                        className="button button-ghost"
+                        disabled={busy}
+                        onClick={flag.lifecycle === "ACTIVE" ? openArchive : toggleLifecycle}
+                    >
                         {flag.lifecycle === "ACTIVE" ? "Archive flag" : "Restore flag"}
                     </button>
                 </aside>
             </div>
+
+            {archiveOpen && (
+                <ConfirmDialog
+                    title="Archive flag"
+                    confirmLabel="Archive flag"
+                    busyLabel="Archiving…"
+                    busy={busy}
+                    error={actionError}
+                    onConfirm={toggleLifecycle}
+                    onClose={closeArchive}
+                >
+                    <p>
+                        Archive <strong>{flag.name}</strong>? Archived flags stop serving in every environment. You can restore it later.
+                    </p>
+                </ConfirmDialog>
+            )}
 
             {editOpen && (
                 <EditFlagDialog

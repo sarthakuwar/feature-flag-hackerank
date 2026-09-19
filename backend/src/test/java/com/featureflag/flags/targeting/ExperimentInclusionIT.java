@@ -41,6 +41,7 @@ import com.featureflag.flags.metrics.ConversionEvent;
 import com.featureflag.flags.metrics.ConversionRepository;
 import com.featureflag.flags.metrics.ImpressionEvent;
 import com.featureflag.flags.metrics.ImpressionRepository;
+import com.featureflag.flags.metrics.ImpressionWriter;
 import com.featureflag.flags.metrics.dto.ConversionRequest;
 import com.featureflag.flags.targeting.dto.BulkTargetRequest;
 import com.featureflag.flags.targeting.dto.ClauseRequest;
@@ -72,6 +73,9 @@ class ExperimentInclusionIT {
 
 	@Autowired
 	private ImpressionRepository impressionRepository;
+
+	@Autowired
+	private ImpressionWriter impressionWriter;
 
 	@Autowired
 	private ConversionRepository conversionRepository;
@@ -301,6 +305,8 @@ class ExperimentInclusionIT {
 	}
 
 	private long countedImpressions() {
+		impressionWriter.flush();
+
 		return impressionRepository.findByFlagKeyAndEnvironment(FLAG, EnvironmentKey.PRODUCTION).stream()
 				.filter(ImpressionEvent::isIncludedInExperiment).count();
 	}
@@ -318,8 +324,10 @@ class ExperimentInclusionIT {
 		}
 	}
 
-	/** Impressions are written synchronously, so they are all there the moment the last evaluation returned: no waiting. */
+	/** Impressions are queued for a background writer; flush() waits until every one evaluated so far is stored. */
 	private void assertImpressionsRecorded(int expected) {
+		impressionWriter.flush();
+
 		assertThat(impressionRepository.findByFlagKeyAndEnvironment(FLAG, EnvironmentKey.PRODUCTION)).hasSize(expected);
 	}
 

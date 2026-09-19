@@ -26,7 +26,7 @@ import com.featureflag.flags.EnvironmentConfig;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
 import com.featureflag.flags.FlagLifecycle;
-import com.featureflag.flags.FlagRepository;
+import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagStreamService;
 import com.featureflag.flags.FlagType;
 import com.featureflag.flags.Variation;
@@ -49,7 +49,7 @@ class SegmentServiceTest {
 	private SegmentRepository segmentRepository;
 
 	@Mock
-	private FlagRepository flagRepository;
+	private FlagCacheService flagCacheService;
 
 	@Mock
 	private TargetingCacheService targetingCacheService;
@@ -61,7 +61,7 @@ class SegmentServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		segmentService = new SegmentService(segmentRepository, flagRepository, targetingCacheService, flagStreamService);
+		segmentService = new SegmentService(segmentRepository, flagCacheService, targetingCacheService, flagStreamService);
 		lenient().when(segmentRepository.save(any(Segment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 	}
 
@@ -333,7 +333,7 @@ class SegmentServiceTest {
 	void deleteRemovesTheSegmentEvictsItFromTheCacheAndBroadcasts() {
 		Segment existing = segment("beta-testers", "Beta", null, "user");
 		when(segmentRepository.findByEnvironmentAndKey(ENV, "beta-testers")).thenReturn(Optional.of(existing));
-		when(flagRepository.findAll()).thenReturn(List.of());
+		when(flagCacheService.all()).thenReturn(List.of());
 
 		segmentService.delete(ENV, "beta-testers", "tester");
 
@@ -347,7 +347,7 @@ class SegmentServiceTest {
 		when(segmentRepository.findByEnvironmentAndKey(ENV, "beta-testers")).thenReturn(Optional.of(segment("beta-testers", "Beta", null, "user")));
 		Flag archived = flagWithSegmentRule("legacy-flag", "beta-testers");
 		archived.setLifecycle(FlagLifecycle.ARCHIVED);
-		when(flagRepository.findAll()).thenReturn(List.of(archived, flagWithSegmentRule("live-flag", "other-segment")));
+		when(flagCacheService.all()).thenReturn(List.of(archived, flagWithSegmentRule("live-flag", "other-segment")));
 
 		assertThatThrownBy(() -> segmentService.delete(ENV, "beta-testers", "tester")).isInstanceOfSatisfying(ApiException.class, exception -> {
 			assertThat(exception.getStatusCode()).isEqualTo(409);
@@ -364,7 +364,7 @@ class SegmentServiceTest {
 		Flag usesIt = flagWithSegmentRule("uses-it", "beta-testers");
 		Flag differentEnvironmentOnly = flagWithSegmentRule("staging-only", "beta-testers");
 		differentEnvironmentOnly.getEnvironments().put(EnvironmentKey.STAGING, differentEnvironmentOnly.getEnvironments().remove(ENV));
-		when(flagRepository.findAll()).thenReturn(List.of(usesIt, differentEnvironmentOnly, flagWithSegmentRule("no", "unrelated")));
+		when(flagCacheService.all()).thenReturn(List.of(usesIt, differentEnvironmentOnly, flagWithSegmentRule("no", "unrelated")));
 
 		List<SegmentUsageResponse> usage = segmentService.usage(ENV, "beta-testers");
 
@@ -372,6 +372,50 @@ class SegmentServiceTest {
 		assertThat(usage.get(0).flagKey()).isEqualTo("uses-it");
 		assertThat(usage.get(0).ruleId()).isEqualTo("rule-uses-it");
 		assertThat(usage.get(0).lifecycle()).isEqualTo(FlagLifecycle.ACTIVE);
+	}
+
+	@Test
+	void usageCountsArchivedFlagsAndListsEveryReferencingRuleOrderedByFlagKey() {
+		when(segmentRepository.findByEnvironmentAndKey(ENV, "beta-testers")).thenReturn(Optional.of(segment("beta-testers", "Beta", null, "user")));
+		Flag archived = flagWithSegmentRule("zeta-flag", "beta-testers");
+		archived.setLifecycle(FlagLifecycle.ARCHIVED);
+		Flag twoRules = flagWithSegmentRule("alpha-flag", "beta-testers");
+		TargetingRule second = new TargetingRule();
+		second.setId("second-rule");
+		second.setDescription("also uses it");
+		second.getClauses().add(new Clause("user", null, ClauseOperator.IN_SEGMENT, List.of("x", "beta-testers"), false));
+		twoRules.getEnvironments().get(ENV).getRules().add(second);
+		Flag notASegmentClause = flagWithSegmentRule("mid-flag", "unrelated");
+		notASegmentClause.getEnvironments().get(ENV).getRules().get(0).getClauses()
+				.add(new Clause("user", "email", ClauseOperator.IN, List.of("beta-testers"), false));
+		when(flagCacheService.all()).thenReturn(List.of(archived, notASegmentClause, twoRules));
+
+		List<SegmentUsageResponse> usage = segmentService.usage(ENV, "beta-testers");
+
+		assertThat(usage).extracting(SegmentUsageResponse::flagKey).containsExactly("alpha-flag", "alpha-flag", "zeta-flag");
+		assertThat(usage).extracting(SegmentUsageResponse::ruleId).containsExactly("rule-alpha-flag", "second-rule", "rule-zeta-flag");
+		assertThat(usage).extracting(SegmentUsageResponse::lifecycle).containsExactly(FlagLifecycle.ACTIVE, FlagLifecycle.ACTIVE,
+				FlagLifecycle.ARCHIVED);
+	}
+
+	@Test
+	void deleteSucceedsWhenTheCachedFlagsOnlyReferenceOtherSegments() {
+		Segment existing = segment("beta-testers", "Beta", null, "user");
+		when(segmentRepository.findByEnvironmentAndKey(ENV, "beta-testers")).thenReturn(Optional.of(existing));
+		when(flagCacheService.all()).thenReturn(List.of(flagWithSegmentRule("live-flag", "other-segment")));
+
+		segmentService.delete(ENV, "beta-testers", "tester");
+
+		verify(segmentRepository).delete(existing);
+	}
+
+	@Test
+	void usageOfAMissingSegmentIsNotFoundAndNeverScansTheFlags() {
+		when(segmentRepository.findByEnvironmentAndKey(ENV, "ghost")).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> segmentService.usage(ENV, "ghost")).isInstanceOfSatisfying(ApiException.class,
+				exception -> assertThat(exception.getCode()).isEqualTo("SEGMENT_NOT_FOUND"));
+		verify(flagCacheService, never()).all();
 	}
 
 	// ---- helpers

@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -39,16 +41,21 @@ import com.featureflag.flags.targeting.dto.SegmentRuleRequest;
 import com.featureflag.flags.targeting.dto.TargetingRuleRequest;
 
 /**
- * backend/build.gradle can't carry a Gradle "seed" task (it's a readonly_paths entry and has no
- * apply-from hook), so setup.sh's Gradle-seed lookup harmlessly no-ops. Seeding instead happens
- * here, in code, on every backend start: clear the flag collections, then insert a realistic
- * baseline, per GUIDELINES.md 3.4 ("seed logic clears application collections before inserting
- * the baseline"). Skipped for the "test" profile so integration tests own their own fixtures.
+ * Seeds demo data in code on every backend start: clear the flag collections, then insert a
+ * realistic baseline, per GUIDELINES.md 3.4 ("seed logic clears application collections before
+ * inserting the baseline"). There is no Gradle seed task; setup.sh only builds, and this runs when
+ * the backend starts. Skipped for the "test" profile so integration tests own their own fixtures,
+ * and skipped (with a warning, touching nothing) when {@link SeedGuard} says the configured MongoDB
+ * is not on this machine and FEATUREFLAG_SEED=true does not force it.
  */
 @Component
 @Profile("!test")
 @Order(1)
 public class FlagSeeder implements ApplicationRunner {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FlagSeeder.class);
+
+	private final SeedGuard seedGuard;
 
 	private final FlagRepository flagRepository;
 
@@ -78,13 +85,14 @@ public class FlagSeeder implements ApplicationRunner {
 
 	private final ProgressiveRolloutService progressiveRolloutService;
 
-	public FlagSeeder(FlagRepository flagRepository, AuditRepository auditRepository, FlagService flagService,
+	public FlagSeeder(SeedGuard seedGuard, FlagRepository flagRepository, AuditRepository auditRepository, FlagService flagService,
 			FlagCacheService flagCacheService, ImpressionRepository impressionRepository,
 			ConversionRepository conversionRepository, ExperimentService experimentService,
 			SegmentRepository segmentRepository, MobileApplicationRepository mobileApplicationRepository,
 			SegmentService segmentService, MobileApplicationService mobileApplicationService,
 			TargetingService targetingService, TargetingCacheService targetingCacheService,
 			ProgressiveRolloutService progressiveRolloutService) {
+		this.seedGuard = seedGuard;
 		this.flagRepository = flagRepository;
 		this.auditRepository = auditRepository;
 		this.flagService = flagService;
@@ -103,6 +111,17 @@ public class FlagSeeder implements ApplicationRunner {
 
 	@Override
 	public void run(ApplicationArguments args) {
+		if (!seedGuard.permitsSeeding()) {
+			LOG.warn("Not seeding: the configured MongoDB is not on this machine, and seeding would delete its flags, audit"
+					+ " history, metrics, segments and applications. Set FEATUREFLAG_SEED=true to seed it anyway.");
+
+			return;
+		}
+
+		if (seedGuard.isForced()) {
+			LOG.warn("FEATUREFLAG_SEED=true: clearing and reseeding the configured MongoDB.");
+		}
+
 		flagRepository.deleteAll();
 		auditRepository.deleteAll();
 		impressionRepository.deleteAll();

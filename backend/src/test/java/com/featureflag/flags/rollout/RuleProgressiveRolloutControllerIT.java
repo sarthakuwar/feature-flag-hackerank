@@ -3,18 +3,11 @@ package com.featureflag.flags.rollout;
 import static com.featureflag.flags.rollout.RolloutFixtures.T0;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Flow;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,8 +29,10 @@ import org.springframework.test.context.ActiveProfiles;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagRepository;
+import com.featureflag.flags.FlagStreamService;
 import com.featureflag.flags.FlagType;
 import com.featureflag.flags.ProgressiveRollout;
+import com.featureflag.flags.SseTestClient;
 import com.featureflag.flags.StrategyType;
 import com.featureflag.flags.audit.AuditRepository;
 import com.featureflag.flags.dto.ActingRequest;
@@ -49,6 +44,7 @@ import com.featureflag.flags.dto.VariationRequest;
 import com.featureflag.flags.metrics.ConversionRepository;
 import com.featureflag.flags.metrics.ImpressionEvent;
 import com.featureflag.flags.metrics.ImpressionRepository;
+import com.featureflag.flags.metrics.ImpressionWriter;
 import com.featureflag.flags.rollout.dto.RolloutStageRequest;
 import com.featureflag.flags.rollout.dto.StartProgressiveRolloutRequest;
 import com.featureflag.flags.rollout.dto.StopProgressiveRolloutRequest;
@@ -109,9 +105,13 @@ class RuleProgressiveRolloutControllerIT {
 
 	@Autowired
 	private FlagCacheService flagCacheService;
+@Autowired	private FlagStreamService flagStreamService;
 
 	@Autowired
 	private ImpressionRepository impressionRepository;
+
+	@Autowired
+	private ImpressionWriter impressionWriter;
 
 	@Autowired
 	private ConversionRepository conversionRepository;
@@ -171,23 +171,15 @@ class RuleProgressiveRolloutControllerIT {
 	}
 
 	@Test
-	void startingIsAuditedAndBroadcastToSdkStreams() throws Exception {
+	void startingIsAuditedAndBroadcastToSdkStreams() {
 		String ruleId = flagWithProRule();
-		List<String> lines = new CopyOnWriteArrayList<>();
-		CompletableFuture<HttpResponse<Void>> stream = subscribe(lines);
-		Thread.sleep(400);
 
-		startOnRule(ruleId, "on");
+		try (SseTestClient stream = SseTestClient.open(port, flagStreamService, EnvironmentKey.PRODUCTION)) {
+			startOnRule(ruleId, "on");
 
-		long deadline = System.currentTimeMillis() + 5_000;
-
-		while (System.currentTimeMillis() < deadline && lines.stream().noneMatch(line -> line.contains("ROLLOUT_START"))) {
-			Thread.sleep(100);
+			stream.awaitLine("ROLLOUT_START");
+			assertThat(stream.hasLine("flag-changed")).as("SDKs hear about it within seconds").isTrue();
 		}
-
-		stream.cancel(true);
-		assertThat(lines).as("SDKs hear about it within seconds").anyMatch(line -> line.contains("flag-changed"));
-		assertThat(lines).anyMatch(line -> line.contains("ROLLOUT_START"));
 
 		List<Map<String, Object>> audit = (List<Map<String, Object>>) restTemplate.getForEntity("/api/v1/flags/" + FLAG + "/audit", Map.class)
 				.getBody().get("data");
@@ -269,6 +261,8 @@ class RuleProgressiveRolloutControllerIT {
 			evaluate("pro-" + index, Map.of("plan", "pro"));
 		}
 
+		impressionWriter.flush();
+
 		List<ImpressionEvent> impressions = impressionRepository.findByFlagKeyAndEnvironment(FLAG, EnvironmentKey.PRODUCTION);
 
 		assertThat(impressions).hasSize(5);
@@ -297,16 +291,21 @@ class RuleProgressiveRolloutControllerIT {
 	}
 
 	@Test
-	void disablingTheRuleMidRampPausesItsEffectAndReEnablingResumesIt() {
+	void aRuleWithAnActiveRampCannotBeDisabledUntilTheRampIsStopped() {
 		String ruleId = flagWithProRule();
-		startOnRule(ruleId, "on");
+		String rolloutId = idOf(startOnRule(ruleId, "on"));
 		clock.set(T0.plus(Duration.ofMinutes(120)));
 
-		patch(RULES + "/" + ruleId, new RuleEnabledRequest(false, "tester"));
-		assertThat(evaluate("pro-1", Map.of("plan", "pro")).get("reason")).isEqualTo("FALLTHROUGH");
+		ResponseEntity<Map> refused = patch(RULES + "/" + ruleId, new RuleEnabledRequest(false, "tester"));
 
-		patch(RULES + "/" + ruleId, new RuleEnabledRequest(true, "tester"));
+		assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+		assertThat(errorCode(refused)).isEqualTo("ROLLOUT_IN_PROGRESS");
 		assertThat(evaluate("pro-1", Map.of("plan", "pro")).get("reason")).isEqualTo("PROGRESSIVE_ROLLOUT");
+
+		stop(rolloutId, "off");
+
+		assertThat(patch(RULES + "/" + ruleId, new RuleEnabledRequest(false, "tester")).getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(evaluate("pro-1", Map.of("plan", "pro")).get("reason")).isEqualTo("FALLTHROUGH");
 	}
 
 	// ---- protecting a rule that is being ramped ----
@@ -638,30 +637,5 @@ class RuleProgressiveRolloutControllerIT {
 		Map<String, Object> details = (Map<String, Object>) ((Map<String, Object>) response.getBody().get("error")).get("details");
 
 		return (Map<String, Object>) details.get("fieldErrors");
-	}
-
-	private CompletableFuture<HttpResponse<Void>> subscribe(List<String> lines) {
-		HttpRequest request = HttpRequest.newBuilder().uri(URI.create("http://localhost:" + port + "/api/v1/stream/PRODUCTION"))
-				.timeout(Duration.ofSeconds(15)).GET().build();
-
-		return HttpClient.newHttpClient().sendAsync(request, responseInfo -> HttpResponse.BodySubscribers.fromLineSubscriber(new Flow.Subscriber<String>() {
-			@Override
-			public void onSubscribe(Flow.Subscription subscription) {
-				subscription.request(Long.MAX_VALUE);
-			}
-
-			@Override
-			public void onNext(String item) {
-				lines.add(item);
-			}
-
-			@Override
-			public void onError(Throwable throwable) {
-			}
-
-			@Override
-			public void onComplete() {
-			}
-		}));
 	}
 }

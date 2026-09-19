@@ -9,6 +9,8 @@ import java.util.Set;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import com.featureflag.flags.EnvironmentKey;
@@ -21,7 +23,7 @@ import com.featureflag.flags.UserContext;
  * so membership is O(1) however large a bulk import makes them.
  */
 @Document("segments")
-public class Segment {
+public class Segment implements Persistable<String> {
 
 	@Id
 	private String id;
@@ -44,6 +46,14 @@ public class Segment {
 
 	private String updatedBy;
 
+	/**
+	 * Optimistic-lock counter: a save fails with {@code OptimisticLockingFailureException} when the
+	 * stored document changed since it was read. Null on a document written before locking existed;
+	 * {@link #isNew()} keys off the id, not this field, so such a document still updates in place.
+	 */
+	@Version
+	private Long version;
+
 	@CreatedDate
 	private Instant createdAt;
 
@@ -53,8 +63,18 @@ public class Segment {
 	public Segment() {
 	}
 
+	@Override
 	public String getId() {
 		return id;
+	}
+
+	@Override
+	public boolean isNew() {
+		return id == null;
+	}
+
+	public Long getVersion() {
+		return version;
 	}
 
 	public void setId(String id) {

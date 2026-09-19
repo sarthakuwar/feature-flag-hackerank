@@ -3,6 +3,7 @@ package com.featureflag.flags;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.featureflag.flags.audit.AuditEvent;
 import com.featureflag.flags.audit.AuditService;
 import com.featureflag.flags.dto.ActingRequest;
 import com.featureflag.flags.dto.AuditEventResponse;
@@ -26,6 +28,8 @@ import com.featureflag.flags.dto.FlagResponse;
 import com.featureflag.flags.dto.FlagUpdateRequest;
 import com.featureflag.flags.dto.VariationCreateRequest;
 import com.featureflag.flags.dto.VariationUpdateRequest;
+import com.featureflag.shared.PageMeta;
+import com.featureflag.shared.PageParams;
 
 /**
  * Write/admin surface for flag management. Kept separate from {@link FlagEvalController}, the
@@ -45,10 +49,13 @@ public class FlagAdminController {
 	}
 
 	@GetMapping
-	public ResponseEntity<Map<String, Object>> list(@RequestParam(required = false) FlagLifecycle lifecycle) {
-		List<FlagResponse> flags = flagService.list(lifecycle).stream().map(FlagResponse::from).toList();
+	public ResponseEntity<Map<String, Object>> list(@RequestParam(required = false) FlagLifecycle lifecycle,
+			@RequestParam(required = false) String q, @RequestParam(required = false) String page,
+			@RequestParam(required = false) String limit) {
+		Page<Flag> flags = flagService.list(lifecycle, q, PageParams.parse(page, limit));
+		List<FlagResponse> data = flags.map(FlagResponse::from).getContent();
 
-		return ResponseEntity.ok(Map.of("data", flags));
+		return ResponseEntity.ok(Map.of("data", data, "meta", PageMeta.from(flags)));
 	}
 
 	@GetMapping("/{key}")
@@ -110,11 +117,14 @@ public class FlagAdminController {
 	}
 
 	@GetMapping("/{key}/audit")
-	public ResponseEntity<Map<String, Object>> audit(@PathVariable String key) {
+	public ResponseEntity<Map<String, Object>> audit(@PathVariable String key, @RequestParam(required = false) String page,
+			@RequestParam(required = false) String limit) {
+		PageParams params = PageParams.parse(page, limit);
 		flagService.getOrThrow(key);
-		List<AuditEventResponse> history = auditService.history(key).stream().map(AuditEventResponse::from).toList();
+		Page<AuditEvent> history = auditService.history(key, params);
+		List<AuditEventResponse> data = history.map(AuditEventResponse::from).getContent();
 
-		return ResponseEntity.ok(Map.of("data", history));
+		return ResponseEntity.ok(Map.of("data", data, "meta", PageMeta.from(history)));
 	}
 
 	@PostMapping("/bulk-archive/validate")

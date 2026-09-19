@@ -1,12 +1,15 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link, navigate } from "../../shared/router.jsx";
 import { useAppState } from "../../shared/state/AppStateContext.jsx";
 import { useLiveEvents } from "../../shared/state/LiveContext.jsx";
 import { listFlags, bulkRestore } from "../../shared/api/flags.js";
 import { formatEnumLabel, formatRelativeTime, pluralize, variationColor } from "../../shared/format.js";
 import ErrorBanner from "../../shared/ErrorBanner.jsx";
+import Pager from "../../shared/Pager.jsx";
 import useAction from "../../shared/useAction.js";
-import useResource from "../../shared/useResource.js";
+import useDebouncedCallback from "../../shared/useDebouncedCallback.js";
+import useDebouncedValue from "../../shared/useDebouncedValue.js";
+import usePagedList from "../../shared/usePagedList.js";
 import CreateFlagDialog from "./CreateFlagDialog.jsx";
 import BulkArchiveDialog from "./BulkArchiveDialog.jsx";
 
@@ -15,6 +18,11 @@ const LIFECYCLE_FILTERS = [
     { value: "ACTIVE", label: "Active" },
     { value: "ARCHIVED", label: "Archived" },
 ];
+
+const PAGE_SIZE = 25;
+const SEARCH_DELAY_MS = 300;
+const LIVE_RELOAD_DELAY_MS = 300;
+const NO_SELECTION = new Set();
 
 function summarizeBulk(result) {
     const parts = [];
@@ -33,7 +41,6 @@ export default function FlagsListPage() {
     const { environment, actingAs, environments } = useAppState();
     const [lifecycle, setLifecycle] = useState("ACTIVE");
     const [search, setSearch] = useState("");
-    const [selected, setSelected] = useState(() => new Set());
     const [createOpen, setCreateOpen] = useState(false);
     const [archiveOpen, setArchiveOpen] = useState(false);
     const [notice, setNotice] = useState(null);
@@ -41,43 +48,42 @@ export default function FlagsListPage() {
     const headingRef = useRef(null);
     const newFlagButtonRef = useRef(null);
 
-    const { data: flags, error: loadError, reload } = useResource(() => listFlags(lifecycle || undefined), [lifecycle]);
-    useLiveEvents((event) => event.type === "flag-changed" && reload());
+    const query = useDebouncedValue(search.trim(), SEARCH_DELAY_MS);
+    const list = usePagedList(({ page, limit }) => listFlags({ page, limit, q: query, lifecycle }), [lifecycle, query], PAGE_SIZE);
+    const { items: flags, meta, error: loadError } = list;
 
-    const filtered = useMemo(() => {
-        if (!flags) return [];
-        const term = search.trim().toLowerCase();
-        if (!term) return flags;
-        return flags.filter(
-            (flag) =>
-                flag.key.toLowerCase().includes(term) || flag.name.toLowerCase().includes(term) || (flag.owner || "").toLowerCase().includes(term),
-        );
-    }, [flags, search]);
+    // Events from one edit arrive in a burst, and this page's own bulk actions trigger them too: reload once.
+    const scheduleReload = useDebouncedCallback(list.reload, LIVE_RELOAD_DELAY_MS);
+    useLiveEvents((event) => (event.type === "flag-changed" || event.type === "resync") && scheduleReload());
+
+    // A selection belongs to the page and filters it was made on, so it is discarded when any of them change.
+    const selectionScope = `${list.scope}:${list.page}`;
+    const [selection, setSelection] = useState({ scope: selectionScope, keys: NO_SELECTION });
+    const selected = selection.scope === selectionScope ? selection.keys : NO_SELECTION;
+    const updateSelected = (keys) => setSelection({ scope: selectionScope, keys });
 
     const changeLifecycle = (value) => {
         setLifecycle(value);
-        setSelected(new Set());
         setNotice(null);
     };
 
     const toggleSelected = (key) => {
-        setSelected((prev) => {
-            const next = new Set(prev);
-            if (next.has(key)) next.delete(key);
-            else next.add(key);
-            return next;
-        });
+        const next = new Set(selected);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        updateSelected(next);
     };
 
-    const allVisibleSelected = filtered.length > 0 && filtered.every((flag) => selected.has(flag.key));
-    const toggleAllVisible = () => setSelected(allVisibleSelected ? new Set() : new Set(filtered.map((flag) => flag.key)));
-    const clearSelection = () => setSelected(new Set());
+    const visible = flags || [];
+    const allVisibleSelected = visible.length > 0 && visible.every((flag) => selected.has(flag.key));
+    const toggleAllVisible = () => updateSelected(allVisibleSelected ? new Set() : new Set(visible.map((flag) => flag.key)));
+    const clearSelection = () => updateSelected(new Set());
 
     const finishBulk = (result) => {
         setNotice(summarizeBulk(result));
         clearSelection();
         setArchiveOpen(false);
-        reload();
+        scheduleReload();
         headingRef.current?.focus();
     };
 
@@ -145,16 +151,16 @@ export default function FlagsListPage() {
                     {notice}
                 </div>
             )}
-            <ErrorBanner error={loadError || actionError} />
+            <ErrorBanner error={loadError || actionError} onReload={list.reload} />
 
             {flags === null && !loadError ? (
                 <div className="empty-state">Loading flags…</div>
-            ) : filtered.length === 0 ? (
+            ) : visible.length === 0 ? (
                 <div className="empty-state">
-                    {search ? "No flags match your search." : lifecycle === "ARCHIVED" ? "No archived flags." : "No flags yet. Create one to get started."}
+                    {query ? "No flags match your search." : lifecycle === "ARCHIVED" ? "No archived flags." : "No flags yet. Create one to get started."}
                 </div>
             ) : (
-                <div className="table-scroll">
+                <div className="table-scroll" aria-busy={list.loading}>
                     <table className="flags-table">
                         <thead>
                             <tr>
@@ -169,7 +175,7 @@ export default function FlagsListPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map((flag) => (
+                            {visible.map((flag) => (
                                 <tr key={flag.key} data-archived={flag.lifecycle === "ARCHIVED"}>
                                     <td className="col-select">
                                         <input
@@ -223,6 +229,8 @@ export default function FlagsListPage() {
                     </table>
                 </div>
             )}
+
+            <Pager meta={meta} onPageChange={list.setPage} label="Flags pages" />
 
             {createOpen && (
                 <CreateFlagDialog

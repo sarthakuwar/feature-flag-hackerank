@@ -2034,3 +2034,33 @@ a:focus-visible,
         white-space: nowrap;
     }
 }
+
+/* ---------- Pagination ---------- */
+
+.pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pager-summary {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.pager-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.banner-title + .button {
+    margin-top: 8px;
+}
+
+.fatal-error {
+    margin: 0 auto;
+    padding: 64px 24px;
+}

@@ -22,7 +22,7 @@ export default function SegmentsPage() {
     }, [search]);
 
     const { data: segments, error, reload } = useResource(() => listSegments(environment, { query, contextKind }), [environment, query, contextKind]);
-    useLiveEvents((event) => event.type === "segment-changed" && reload());
+    useLiveEvents((event) => (event.type === "segment-changed" || event.type === "resync") && reload());
 
     const filtered = query || contextKind;
 

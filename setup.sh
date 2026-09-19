@@ -24,12 +24,24 @@ mongo_is_reachable() {
     (exec 3<>"/dev/tcp/${MONGO_HOST}/${MONGO_PORT}") >/dev/null 2>&1
 }
 
+# Local-dev convenience only: when MONGODB_URI points at another host there is nothing to start here.
+uses_remote_mongo() {
+    case "${MONGODB_URI:-}" in
+        ""|*localhost*|*127.0.0.1*|*"[::1]"*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
 check_mongo() {
+    if uses_remote_mongo; then
+        log_info "MONGODB_URI targets another host; skipping the local MongoDB check"
+        return
+    fi
     if mongo_is_reachable; then
         log_info "MongoDB is already reachable on ${MONGO_PORT}"
         return
     fi
-    log_warn "MongoDB is not reachable; starting it"
+    log_warn "MongoDB is not reachable; starting a local one (development convenience only)"
     if [ -f /etc/mongod.conf ]; then
         mongod --config /etc/mongod.conf --fork >/dev/null 2>&1 || true
     else
@@ -42,22 +54,15 @@ check_mongo() {
     }
 }
 
+# Gradle skips up-to-date work, so this is quick when nothing changed and correct when sources did.
 setup_backend() {
-    if [ -d "backend/build/classes" ]; then
-        log_info "Backend build is current"
-        return
-    fi
     log_info "Building the Feature Flag backend"
     ./backend/gradlew -p backend classes --quiet --console=plain
 }
 
+# There is no Gradle seed task: FlagSeeder resets and reseeds the database when the backend starts.
 seed_database() {
-    if ! ./backend/gradlew -p backend tasks --all --quiet --console=plain | grep -q '^seed'; then
-        log_warn "No seed task defined yet; skipping database seeding"
-        return
-    fi
-    log_info "Seeding Feature Flag database"
-    ./backend/gradlew -p backend seed --quiet --console=plain
+    log_info "Seed data is loaded when the backend starts (FlagSeeder resets a local MongoDB; FEATUREFLAG_SEED=true forces a remote one)"
 }
 
 setup_env

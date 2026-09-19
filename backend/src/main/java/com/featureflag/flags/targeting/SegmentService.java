@@ -9,16 +9,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
 import com.featureflag.flags.EnvironmentConfig;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
-import com.featureflag.flags.FlagRepository;
+import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagStreamService;
-import com.featureflag.flags.UserContext;
 import com.featureflag.flags.targeting.dto.BulkChangeSummary;
 import com.featureflag.flags.targeting.dto.SegmentCreateRequest;
 import com.featureflag.flags.targeting.dto.SegmentMembersRequest;
@@ -29,6 +27,7 @@ import com.featureflag.flags.targeting.dto.SegmentUpdateRequest;
 import com.featureflag.flags.targeting.dto.SegmentUsageResponse;
 import com.featureflag.shared.ApiException;
 import com.featureflag.shared.FieldErrors;
+import com.featureflag.shared.Validation;
 
 /**
  * Environment-scoped segments: named, reusable groups of contexts that flag targeting rules refer to
@@ -39,10 +38,6 @@ import com.featureflag.shared.FieldErrors;
 @Service
 public class SegmentService {
 
-	private static final Pattern KEY_PATTERN = Pattern.compile("^[a-z][a-z0-9-]{1,63}$");
-
-	private static final Pattern CONTEXT_KIND_PATTERN = Pattern.compile("^[a-z][a-z0-9_-]{0,49}$");
-
 	private static final String CHANGE_CREATED = "CREATE";
 
 	private static final String CHANGE_UPDATED = "UPDATE";
@@ -51,16 +46,16 @@ public class SegmentService {
 
 	private final SegmentRepository segmentRepository;
 
-	private final FlagRepository flagRepository;
+	private final FlagCacheService flagCacheService;
 
 	private final TargetingCacheService targetingCacheService;
 
 	private final FlagStreamService flagStreamService;
 
-	public SegmentService(SegmentRepository segmentRepository, FlagRepository flagRepository,
+	public SegmentService(SegmentRepository segmentRepository, FlagCacheService flagCacheService,
 			TargetingCacheService targetingCacheService, FlagStreamService flagStreamService) {
 		this.segmentRepository = segmentRepository;
-		this.flagRepository = flagRepository;
+		this.flagCacheService = flagCacheService;
 		this.targetingCacheService = targetingCacheService;
 		this.flagStreamService = flagStreamService;
 	}
@@ -84,19 +79,15 @@ public class SegmentService {
 
 	public Segment create(EnvironmentKey environment, SegmentCreateRequest request) {
 		FieldErrors errors = new FieldErrors();
-		validateKey(request.key(), errors);
-		requireText(request.name(), "name", errors);
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.validateKey(request.key(), errors);
+		Validation.requireText(request.name(), "name", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
-		String contextKind = request.contextKind() == null || request.contextKind().isBlank() ? UserContext.USER_KIND
-				: request.contextKind();
+		String contextKind = TargetingValidation.normalizeKind(request.contextKind());
+		TargetingValidation.validateKind(contextKind, "contextKind", errors);
 
-		if (!CONTEXT_KIND_PATTERN.matcher(contextKind).matches()) {
-			errors.add("contextKind", "Context kind must be lowercase letters, numbers, underscores and hyphens, starting with a letter.");
-		}
-
-		Set<String> included = cleanKeys(request.included(), "included", errors);
-		Set<String> excluded = cleanKeys(request.excluded(), "excluded", errors);
+		Set<String> included = TargetingValidation.cleanKeys(request.included(), TargetingLimits.MAX_SEGMENT_MEMBERS, "included", errors);
+		Set<String> excluded = TargetingValidation.cleanKeys(request.excluded(), TargetingLimits.MAX_SEGMENT_MEMBERS, "excluded", errors);
 
 		if (included.stream().anyMatch(excluded::contains)) {
 			errors.add("excluded", "A key cannot be both included and excluded.");
@@ -133,8 +124,8 @@ public class SegmentService {
 	public Segment update(EnvironmentKey environment, String key, SegmentUpdateRequest request) {
 		Segment segment = getOrThrow(environment, key);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.name(), "name", errors);
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.name(), "name", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
 		List<SegmentRule> rules = request.rules() == null ? segment.getRules() : buildRules(request.rules(), errors);
 		errors.throwIfAny();
@@ -155,7 +146,7 @@ public class SegmentService {
 	public SegmentMembersResponse changeMembers(EnvironmentKey environment, String key, SegmentMembersRequest request) {
 		Segment segment = getOrThrow(environment, key);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
 		if (request.list() == null) {
 			errors.add("list", "List is required (INCLUDED or EXCLUDED).");
@@ -165,7 +156,7 @@ public class SegmentService {
 			errors.add("operation", "Operation is required (ADD or REMOVE).");
 		}
 
-		Set<String> keys = cleanKeys(request.keys(), "keys", errors);
+		Set<String> keys = TargetingValidation.cleanKeys(request.keys(), TargetingLimits.MAX_SEGMENT_MEMBERS, "keys", errors);
 
 		if (keys.isEmpty() && !errors.has("keys")) {
 			errors.add("keys", "At least one key is required.");
@@ -208,7 +199,7 @@ public class SegmentService {
 	public void delete(EnvironmentKey environment, String key, String changedBy) {
 		Segment segment = getOrThrow(environment, key);
 		FieldErrors errors = new FieldErrors();
-		requireText(changedBy, "changedBy", errors);
+		Validation.requireText(changedBy, "changedBy", errors);
 		errors.throwIfAny();
 
 		List<SegmentUsageResponse> usages = usage(environment, key);
@@ -226,12 +217,15 @@ public class SegmentService {
 		flagStreamService.publishSegmentChanged(environment, key, CHANGE_DELETED);
 	}
 
-	/** Every flag rule (any lifecycle - a restored flag must not be left pointing at a deleted segment) that references the segment. */
+	/**
+	 * Every flag rule (any lifecycle - a restored flag must not be left pointing at a deleted segment) that references the
+	 * segment, ordered by flag key. It reads {@link FlagCacheService}, which holds every flag including archived ones.
+	 */
 	public List<SegmentUsageResponse> usage(EnvironmentKey environment, String key) {
 		getOrThrow(environment, key);
 		List<SegmentUsageResponse> usages = new ArrayList<>();
 
-		for (Flag flag : flagRepository.findAll()) {
+		for (Flag flag : flagCacheService.all().stream().sorted(Comparator.comparing(Flag::getKey)).toList()) {
 			EnvironmentConfig config = flag.getEnvironments().get(environment);
 
 			if (config == null) {
@@ -299,51 +293,8 @@ public class SegmentService {
 		return rules;
 	}
 
-	private Set<String> cleanKeys(List<String> raw, String field, FieldErrors errors) {
-		Set<String> keys = new LinkedHashSet<>();
-
-		if (raw == null) {
-			return keys;
-		}
-
-		if (raw.size() > TargetingLimits.MAX_SEGMENT_MEMBERS) {
-			errors.add(field, "At most " + TargetingLimits.MAX_SEGMENT_MEMBERS + " keys per request.");
-
-			return keys;
-		}
-
-		for (String key : raw) {
-			String trimmed = key == null ? "" : key.trim();
-
-			if (trimmed.isEmpty()) {
-				continue;
-			}
-
-			if (trimmed.length() > TargetingLimits.MAX_VALUE_LENGTH) {
-				errors.add(field, "Each key must be at most " + TargetingLimits.MAX_VALUE_LENGTH + " characters.");
-			} else {
-				keys.add(trimmed);
-			}
-		}
-
-		return keys;
-	}
-
 	private boolean contains(String haystack, String lowerCaseNeedle) {
 		return haystack != null && haystack.toLowerCase(Locale.ROOT).contains(lowerCaseNeedle);
 	}
 
-	private void validateKey(String key, FieldErrors errors) {
-		if (key == null || key.isBlank()) {
-			errors.add("key", "Key is required.");
-		} else if (!KEY_PATTERN.matcher(key).matches()) {
-			errors.add("key", "Key must be lowercase letters, numbers, and hyphens, starting with a letter.");
-		}
-	}
-
-	private void requireText(String value, String field, FieldErrors errors) {
-		if (value == null || value.isBlank()) {
-			errors.add(field, "This field is required.");
-		}
-	}
 }

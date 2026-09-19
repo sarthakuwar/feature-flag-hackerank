@@ -1,11 +1,26 @@
 import { useMemo, useState } from "react";
+import { getAudit } from "../../shared/api/flags.js";
+import { useLiveEvents } from "../../shared/state/LiveContext.jsx";
+import ErrorBanner from "../../shared/ErrorBanner.jsx";
+import Pager from "../../shared/Pager.jsx";
+import useDebouncedCallback from "../../shared/useDebouncedCallback.js";
+import usePagedList from "../../shared/usePagedList.js";
 import { formatDateTime, formatEnumLabel } from "../../shared/format.js";
+
+const PAGE_SIZE = 20;
+const LIVE_RELOAD_DELAY_MS = 300;
 
 const ACTION_TONES = { ROLLOUT_START: "positive", ROLLOUT_COMPLETE: "positive", PROMOTE: "positive", ARCHIVE: "muted", ROLLOUT_STOP: "muted" };
 
-export default function HistoryTab({ audit }) {
+export default function HistoryTab({ flagKey }) {
     const [search, setSearch] = useState("");
     const [action, setAction] = useState("");
+
+    const list = usePagedList(({ page, limit }) => getAudit(flagKey, { page, limit }), [flagKey], PAGE_SIZE);
+    const audit = list.items;
+
+    const scheduleReload = useDebouncedCallback(list.reload, LIVE_RELOAD_DELAY_MS);
+    useLiveEvents((event) => (event.type === "resync" || (event.type === "flag-changed" && event.flagKey === flagKey)) && scheduleReload());
 
     const actions = useMemo(() => Array.from(new Set((audit || []).map((event) => event.action))).sort(), [audit]);
 
@@ -26,13 +41,13 @@ export default function HistoryTab({ audit }) {
                 <input
                     type="search"
                     className="search-input"
-                    placeholder="Search history…"
+                    placeholder="Search this page of history…"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    aria-label="Search flag history"
+                    aria-label="Search this page of flag history"
                 />
                 <label className="inline-select">
-                    <span className="sr-only">Filter by event type</span>
+                    <span className="sr-only">Filter this page by event type</span>
                     <select value={action} onChange={(event) => setAction(event.target.value)}>
                         <option value="">All events</option>
                         {actions.map((entry) => (
@@ -43,8 +58,9 @@ export default function HistoryTab({ audit }) {
                     </select>
                 </label>
             </div>
+            <ErrorBanner error={list.error} onReload={list.reload} />
             {filtered === null ? (
-                <p className="hint">Loading history…</p>
+                list.error ? null : <p className="hint">Loading history…</p>
             ) : filtered.length === 0 ? (
                 <p className="hint">{search || action ? "No matching history." : "No changes recorded yet."}</p>
             ) : (
@@ -77,6 +93,7 @@ export default function HistoryTab({ audit }) {
                     </table>
                 </div>
             )}
+            <Pager meta={list.meta} onPageChange={list.setPage} label="History pages" />
         </section>
     );
 }

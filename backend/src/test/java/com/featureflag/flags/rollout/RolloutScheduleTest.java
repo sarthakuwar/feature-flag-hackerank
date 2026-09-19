@@ -123,6 +123,18 @@ class RolloutScheduleTest {
 	}
 
 	@Test
+	void resolveRequiresEveryStageToNameItsPercentageAndOffset() {
+		List<RolloutStage> stages = RolloutSchedule.resolve(
+				List.of(new RolloutStageRequest(null, 0), new RolloutStageRequest(50, null), new RolloutStageRequest(100, 10)), null, null,
+				errors);
+
+		assertThat(stages).isEmpty();
+		assertThat(errors.has("stages[0].percentage")).isTrue();
+		assertThat(errors.has("stages[1].offsetMinutes")).isTrue();
+		assertThat(errors.has("stages[2].percentage")).isFalse();
+	}
+
+	@Test
 	void resolveTreatsAnEmptyStageListAsAbsent() {
 		List<RolloutStage> stages = RolloutSchedule.resolve(List.of(), 4, 60, errors);
 

@@ -2,6 +2,7 @@ package com.featureflag.flags;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -12,16 +13,27 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
+import java.util.regex.Pattern;
 
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.featureflag.flags.audit.AuditAction;
 import com.featureflag.flags.audit.AuditService;
@@ -37,6 +49,7 @@ import com.featureflag.flags.dto.VariationUpdateRequest;
 import com.featureflag.flags.targeting.IndividualTarget;
 import com.featureflag.flags.targeting.TargetingRule;
 import com.featureflag.shared.ApiException;
+import com.featureflag.shared.PageParams;
 import com.featureflag.shared.ValidationException;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,8 +71,44 @@ class FlagServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		flagService = new FlagService(flagRepository, flagCacheService, flagStreamService, auditService);
+		FlagAccess flagAccess = new FlagAccess(flagRepository);
+		flagService = new FlagService(flagRepository, flagCacheService, flagStreamService, auditService, flagAccess,
+				new FlagVariationService(flagRepository, flagCacheService, flagStreamService, auditService, flagAccess),
+				new FlagArchiveService(flagRepository, flagCacheService, flagStreamService, auditService, flagAccess));
 		lenient().when(flagRepository.save(any(Flag.class))).thenAnswer((InvocationOnMock invocation) -> invocation.getArgument(0));
+	}
+
+	@Test
+	void listWithoutFiltersAsksForEveryLifecycleAndAnEmptyPatternOldestFirstWithKeyTieBreak() {
+		Page<Flag> repositoryPage = new PageImpl<>(List.of(existingBooleanFlag("a")), PageRequest.of(1, 25), 30);
+		when(flagRepository.search(any(), any(), any())).thenReturn(repositoryPage);
+
+		Page<Flag> result = flagService.list(null, null, new PageParams(2, 25));
+
+		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+		verify(flagRepository).search(eq(List.of(FlagLifecycle.values())), eq(""), pageable.capture());
+		assertThat(pageable.getValue().getPageNumber()).as("page 2 is zero-based index 1").isEqualTo(1);
+		assertThat(pageable.getValue().getPageSize()).isEqualTo(25);
+		assertThat(pageable.getValue().getSort()).containsExactly(Sort.Order.asc("createdAt"), Sort.Order.asc("key"));
+		assertThat(result).isSameAs(repositoryPage);
+	}
+
+	@Test
+	void listFiltersByLifecycleAndQuotesTheTrimmedSearchTextSoRegexCharactersMatchLiterally() {
+		when(flagRepository.search(any(), any(), any())).thenReturn(Page.empty());
+
+		flagService.list(FlagLifecycle.ARCHIVED, "  a.b*(c)  ", new PageParams(1, 50));
+
+		verify(flagRepository).search(eq(List.of(FlagLifecycle.ARCHIVED)), eq(Pattern.quote("a.b*(c)")), any(Pageable.class));
+	}
+
+	@Test
+	void aBlankSearchTextIsNoFilter() {
+		when(flagRepository.search(any(), any(), any())).thenReturn(Page.empty());
+
+		flagService.list(null, "   ", new PageParams(1, 50));
+
+		verify(flagRepository).search(any(), eq(""), any(Pageable.class));
 	}
 
 	@Test
@@ -561,6 +610,239 @@ class FlagServiceTest {
 
 		assertThat(blocked).containsOnlyKeys("dependency-flag");
 		verify(flagRepository, never()).save(any());
+	}
+
+	// ---- concurrent create ----
+
+	@Test
+	void createReturnsTheWinnersFlagWhenAConcurrentCreateTakesTheKeyBetweenTheCheckAndTheSave() {
+		Flag winner = existingBooleanFlag("new-flag");
+		when(flagRepository.findByKey("new-flag")).thenReturn(Optional.empty(), Optional.of(winner));
+		when(flagRepository.save(any(Flag.class))).thenThrow(new DuplicateKeyException("E11000 duplicate key"));
+
+		Flag result = flagService.create(booleanCreateRequest("new-flag"));
+
+		assertThat(result).isSameAs(winner);
+		verify(flagCacheService, never()).put(any());
+		verify(auditService, never()).record(any(), any(), any(), any());
+		verify(flagStreamService, never()).publishFlagChanged(any(), any(), any());
+	}
+
+	@Test
+	void createRethrowsADuplicateKeyThatNoFlagExplains() {
+		when(flagRepository.findByKey("new-flag")).thenReturn(Optional.empty());
+		when(flagRepository.save(any(Flag.class))).thenThrow(new DuplicateKeyException("E11000 duplicate key"));
+
+		assertThatThrownBy(() -> flagService.create(booleanCreateRequest("new-flag"))).isInstanceOf(DuplicateKeyException.class);
+	}
+
+	// ---- stream events for flag-wide writes ----
+
+	@Test
+	void createAnnouncesTheNewFlagToEveryEnvironment() {
+		flagService.create(booleanCreateRequest("new-flag"));
+
+		for (EnvironmentKey environment : EnvironmentKey.values()) {
+			verify(flagStreamService).publishFlagChanged(environment, "new-flag", AuditAction.CREATE.name());
+		}
+	}
+
+	@Test
+	void updateAndVariationWritesAnnounceTheChangeToEveryEnvironment() {
+		Flag flag = existingMultivariateFlag("multi-flag");
+		flag.getVariations().add(new Variation("green", "Green", "green"));
+		when(flagRepository.findByKey("multi-flag")).thenReturn(Optional.of(flag));
+
+		flagService.update("multi-flag", new FlagUpdateRequest("Renamed", "d", "owner", List.of(), "changer"));
+		flagService.addVariation("multi-flag", new VariationCreateRequest("purple", "Purple", "purple", "changer"));
+		flagService.updateVariation("multi-flag", "red", new VariationUpdateRequest("Crimson", "crimson", "changer"));
+		flagService.removeVariation("multi-flag", "green", "changer");
+
+		for (EnvironmentKey environment : EnvironmentKey.values()) {
+			verify(flagStreamService, times(4)).publishFlagChanged(environment, "multi-flag", AuditAction.UPDATE.name());
+		}
+	}
+
+	@Test
+	void aRejectedWritePublishesNothing() {
+		Flag flag = existingMultivariateFlag("multi-flag");
+		when(flagRepository.findByKey("multi-flag")).thenReturn(Optional.of(flag));
+
+		assertThatThrownBy(() -> flagService.addVariation("multi-flag", new VariationCreateRequest("red", "Dup", "r", "changer")))
+				.isInstanceOf(ValidationException.class);
+		assertThatThrownBy(() -> flagService.update("multi-flag", new FlagUpdateRequest(" ", "d", "owner", List.of(), "changer")))
+				.isInstanceOf(ValidationException.class);
+
+		verify(flagStreamService, never()).publishFlagChanged(any(), any(), any());
+	}
+
+	// ---- removing a variation an experiment split still weights ----
+
+	@Test
+	void removeVariationIsBlockedWhileAnExperimentSplitStillListsItEvenAtWeightZero() {
+		Flag flag = existingMultivariateFlag("multi-flag");
+		flag.getVariations().add(new Variation("green", "Green", "green"));
+		Strategy experiment = new Strategy();
+		experiment.setId("exp");
+		experiment.setType(StrategyType.EXPERIMENT_SPLIT);
+		experiment.setVariationWeights(new LinkedHashMap<>(Map.of("red", 50, "blue", 50, "green", 0)));
+		flag.getEnvironments().get(EnvironmentKey.STAGING).getStrategies().add(experiment);
+		when(flagRepository.findByKey("multi-flag")).thenReturn(Optional.of(flag));
+
+		Map<String, List<String>> errors = fieldErrors(() -> flagService.removeVariation("multi-flag", "green", "changer"));
+
+		assertThat(errors.get("key")).singleElement().asString().contains("STAGING");
+		verify(flagRepository, never()).save(any());
+
+		experiment.setVariationWeights(new LinkedHashMap<>(Map.of("red", 50, "blue", 50)));
+
+		assertThat(flagService.removeVariation("multi-flag", "green", "changer").getVariations()).hasSize(2);
+	}
+
+	// ---- changedBy on archive and restore ----
+
+	@Test
+	void archiveAndRestoreRequireChangedByEvenWhenTheyWouldBeNoOps() {
+		Flag active = existingBooleanFlag("active-flag");
+		Flag archived = existingBooleanFlag("archived-flag");
+		archived.setLifecycle(FlagLifecycle.ARCHIVED);
+		when(flagRepository.findByKey("active-flag")).thenReturn(Optional.of(active));
+		when(flagRepository.findByKey("archived-flag")).thenReturn(Optional.of(archived));
+
+		assertThat(fieldErrors(() -> flagService.archive("active-flag", null))).containsKey("changedBy");
+		assertThat(fieldErrors(() -> flagService.archive("archived-flag", " "))).containsKey("changedBy");
+		assertThat(fieldErrors(() -> flagService.restore("archived-flag", null))).containsKey("changedBy");
+		assertThat(fieldErrors(() -> flagService.restore("active-flag", ""))).containsKey("changedBy");
+
+		assertThat(active.getLifecycle()).isEqualTo(FlagLifecycle.ACTIVE);
+		verify(flagRepository, never()).save(any());
+		verify(auditService, never()).record(any(), any(), any(), any());
+	}
+
+	@Test
+	void archiveOfAnUnknownFlagIsStillNotFoundBeforeChangedByIsChecked() {
+		when(flagRepository.findByKey("ghost")).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> flagService.archive("ghost", null)).isInstanceOf(ApiException.class)
+				.hasFieldOrPropertyWithValue("code", "FLAG_NOT_FOUND");
+	}
+
+	@Test
+	void bulkArchiveAndRestoreRequireChangedByBeforeTouchingAnyFlag() {
+		assertThat(fieldErrors(() -> flagService.bulkArchive(List.of("a-flag"), null))).containsKey("changedBy");
+		assertThat(fieldErrors(() -> flagService.bulkRestore(List.of("a-flag"), " "))).containsKey("changedBy");
+
+		verify(flagRepository, never()).findByKey(any());
+		verify(flagRepository, never()).save(any());
+	}
+
+	// ---- bulk key lists ----
+
+	@Test
+	void bulkOperationsRejectANullOrBlankKeyWithAValidationErrorNotAnNpe() {
+		List<String> withNull = new ArrayList<>(List.of("a-flag"));
+		withNull.add(null);
+		List<String> withBlank = List.of("a-flag", " ");
+
+		assertThat(fieldErrors(() -> flagService.bulkArchive(withNull, "changer"))).containsOnlyKeys("keys[1]");
+		assertThat(fieldErrors(() -> flagService.bulkRestore(withBlank, "changer"))).containsOnlyKeys("keys[1]");
+		assertThat(fieldErrors(() -> flagService.validateBulkArchive(withNull))).containsOnlyKeys("keys[1]");
+
+		verify(flagRepository, never()).findByKey(any());
+	}
+
+	@Test
+	void validateBulkArchiveStillReportsAnUnknownKeyAsNotFound() {
+		when(flagRepository.findByKey("ghost")).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> flagService.validateBulkArchive(List.of("ghost"))).isInstanceOf(ApiException.class)
+				.hasFieldOrPropertyWithValue("statusCode", 404).hasFieldOrPropertyWithValue("code", "FLAG_NOT_FOUND");
+	}
+
+	@Test
+	void bulkOperationsAcceptExactlyTheMaximumNumberOfKeysAndRejectOneMore() {
+		List<String> atLimit = IntStream.range(0, FlagArchiveService.MAX_BULK_KEYS).mapToObj(index -> "flag-" + index).toList();
+		List<String> overLimit = IntStream.rangeClosed(0, FlagArchiveService.MAX_BULK_KEYS).mapToObj(index -> "flag-" + index).toList();
+
+		assertThat(flagService.bulkArchive(atLimit, "changer").notFound()).hasSize(FlagArchiveService.MAX_BULK_KEYS);
+		assertThat(flagService.bulkRestore(atLimit, "changer").notFound()).hasSize(FlagArchiveService.MAX_BULK_KEYS);
+
+		assertThat(fieldErrors(() -> flagService.bulkArchive(overLimit, "changer"))).containsOnlyKeys("keys");
+		assertThat(fieldErrors(() -> flagService.bulkRestore(overLimit, "changer"))).containsOnlyKeys("keys");
+		assertThat(fieldErrors(() -> flagService.validateBulkArchive(overLimit))).containsOnlyKeys("keys");
+	}
+
+	@Test
+	void bulkOperationsStillRequireAtLeastOneKey() {
+		assertThat(fieldErrors(() -> flagService.bulkArchive(null, "changer"))).containsKey("keys");
+		assertThat(fieldErrors(() -> flagService.bulkRestore(List.of(), "changer"))).containsKey("keys");
+		assertThat(fieldErrors(() -> flagService.validateBulkArchive(null))).containsKey("keys");
+	}
+
+	// ---- required fields that used to default silently ----
+
+	@Test
+	void updateEnvironmentRequiresEnabledInsteadOfSilentlyDisablingTheEnvironment() {
+		Flag flag = existingBooleanFlag("existing-flag");
+		flag.getEnvironments().get(EnvironmentKey.PRODUCTION).setEnabled(true);
+		when(flagRepository.findByKey("existing-flag")).thenReturn(Optional.of(flag));
+
+		Map<String, List<String>> errors = fieldErrors(() -> flagService.updateEnvironment("existing-flag", EnvironmentKey.PRODUCTION,
+				new EnvironmentConfigRequest(null, "off", List.of(), "changer")));
+
+		assertThat(errors).containsKey("enabled");
+		assertThat(flag.getEnvironments().get(EnvironmentKey.PRODUCTION).isEnabled()).isTrue();
+		verify(flagRepository, never()).save(any());
+	}
+
+	@Test
+	void aPercentageRolloutStrategyRequiresItsPercentage() {
+		Flag flag = existingBooleanFlag("existing-flag");
+		when(flagRepository.findByKey("existing-flag")).thenReturn(Optional.of(flag));
+		StrategyRequest missing = new StrategyRequest(null, StrategyType.PERCENTAGE_ROLLOUT, List.of(), null, null, null, "on",
+				Map.of(), BanditAlgorithm.NONE, null);
+
+		Map<String, List<String>> errors = fieldErrors(() -> flagService.updateEnvironment("existing-flag", EnvironmentKey.PRODUCTION,
+				new EnvironmentConfigRequest(true, "off", List.of(missing), "changer")));
+
+		assertThat(errors).containsKey("strategies[0].percentage");
+	}
+
+	// ---- payload validation ----
+
+	@Test
+	void aJsonPayloadWithTrailingGarbageIsRejected() {
+		Flag flag = existingMultivariateFlag("multi-flag");
+		when(flagRepository.findByKey("multi-flag")).thenReturn(Optional.of(flag));
+
+		for (String payload : List.of("{} x", "{\"a\":1} {\"b\":2}", "[1,2] ]", "{\"a\":")) {
+			Map<String, List<String>> errors = fieldErrors(() -> flagService.addVariation("multi-flag",
+					new VariationCreateRequest("purple", "Purple", "purple", null, PayloadType.JSON, payload, "changer")));
+
+			assertThat(errors).as(payload).containsKey("payloadValue");
+		}
+
+		verify(flagRepository, never()).save(any());
+	}
+
+	@Test
+	void aWellFormedJsonPayloadIsAccepted() {
+		Flag flag = existingMultivariateFlag("multi-flag");
+		when(flagRepository.findByKey("multi-flag")).thenReturn(Optional.of(flag));
+
+		Flag saved = flagService.addVariation("multi-flag",
+				new VariationCreateRequest("purple", "Purple", "purple", null, PayloadType.JSON, " {\"a\": [1, 2]} ", "changer"));
+
+		assertThat(saved.getVariations()).extracting(Variation::getKey).contains("purple");
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, List<String>> fieldErrors(ThrowingCallable call) {
+		ValidationException thrown = catchThrowableOfType(ValidationException.class, call);
+
+		assertThat(thrown).as("a ValidationException").isNotNull();
+
+		return (Map<String, List<String>>) thrown.getDetails().get("fieldErrors");
 	}
 
 	private FlagCreateRequest booleanCreateRequest(String key) {

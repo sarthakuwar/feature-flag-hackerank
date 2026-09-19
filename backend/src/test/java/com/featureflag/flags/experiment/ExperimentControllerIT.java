@@ -2,16 +2,8 @@ package com.featureflag.flags.experiment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +23,9 @@ import com.featureflag.flags.BanditAlgorithm;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagRepository;
+import com.featureflag.flags.FlagStreamService;
 import com.featureflag.flags.FlagType;
+import com.featureflag.flags.SseTestClient;
 import com.featureflag.flags.audit.AuditRepository;
 import com.featureflag.flags.dto.ActingRequest;
 import com.featureflag.flags.dto.FlagCreateRequest;
@@ -49,6 +43,9 @@ class ExperimentControllerIT {
 
 	@LocalServerPort
 	private int port;
+
+	@Autowired
+	private FlagStreamService flagStreamService;
 
 	@Autowired
 	private TestRestTemplate restTemplate;
@@ -181,58 +178,17 @@ class ExperimentControllerIT {
 	}
 
 	@Test
-	void reallocationBroadcastsAnSseEventToSubscribers() throws Exception {
+	void reallocationBroadcastsAnSseEventToSubscribers() {
 		createFlag("stream-experiment-flag");
 		setWeights("stream-experiment-flag", Map.of("a", 50, "b", 50));
 		configureBandit("stream-experiment-flag", BanditAlgorithm.EPSILON_GREEDY, 0.1);
 
-		HttpClient client = HttpClient.newHttpClient();
-		HttpRequest streamRequest = HttpRequest.newBuilder()
-				.uri(URI.create("http://localhost:" + port + "/api/v1/stream/PRODUCTION")).timeout(Duration.ofSeconds(10)).GET()
-				.build();
+		try (SseTestClient stream = SseTestClient.open(port, flagStreamService, EnvironmentKey.PRODUCTION)) {
+			restTemplate.postForEntity("/api/v1/flags/stream-experiment-flag/environments/PRODUCTION/experiment/reallocate",
+					new ActingRequest("tester"), Map.class);
 
-		List<String> receivedLines = new CopyOnWriteArrayList<>();
-		CompletableFuture<HttpResponse<Void>> streamFuture = client.sendAsync(streamRequest,
-				responseInfo -> HttpResponse.BodySubscribers.fromLineSubscriber(new java.util.concurrent.Flow.Subscriber<>() {
-					@Override
-					public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) {
-						subscription.request(Long.MAX_VALUE);
-					}
-
-					@Override
-					public void onNext(String item) {
-						receivedLines.add(item);
-					}
-
-					@Override
-					public void onError(Throwable throwable) {
-					}
-
-					@Override
-					public void onComplete() {
-					}
-				}));
-
-		Thread.sleep(300);
-
-		restTemplate.postForEntity("/api/v1/flags/stream-experiment-flag/environments/PRODUCTION/experiment/reallocate",
-				new ActingRequest("tester"), Map.class);
-
-		long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
-		boolean received = false;
-
-		while (System.currentTimeMillis() < deadline) {
-			if (receivedLines.stream().anyMatch(line -> line.contains("REALLOCATE"))) {
-				received = true;
-				break;
-			}
-
-			Thread.sleep(100);
+			stream.awaitLine("REALLOCATE");
 		}
-
-		streamFuture.cancel(true);
-
-		assertThat(received).isTrue();
 	}
 
 	private void seedImpressions(String flagKey, String variationKey, int count) {

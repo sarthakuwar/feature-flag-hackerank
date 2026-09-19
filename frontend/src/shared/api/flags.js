@@ -2,11 +2,19 @@ import { request } from "./client.js";
 
 const enc = encodeURIComponent;
 
+function queryString(params) {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([name, value]) => {
+        if (value !== undefined && value !== null && value !== "") search.set(name, value);
+    });
+    return search.size > 0 ? `?${search}` : "";
+}
+
 // Flags
 
-export function listFlags(lifecycle) {
-    const query = lifecycle ? `?lifecycle=${enc(lifecycle)}` : "";
-    return request(`/flags${query}`);
+export function listFlags({ page, limit, q, lifecycle } = {}) {
+    const query = queryString({ page, limit, q, lifecycle });
+    return request(`/flags${query}`, { paged: true });
 }
 
 export function getFlag(key) {
@@ -45,8 +53,9 @@ export function restoreFlag(key, changedBy) {
     return request(`/flags/${enc(key)}/restore`, { method: "POST", body: JSON.stringify({ changedBy }) });
 }
 
-export function getAudit(key) {
-    return request(`/flags/${enc(key)}/audit`);
+export function getAudit(key, { page, limit } = {}) {
+    const query = queryString({ page, limit });
+    return request(`/flags/${enc(key)}/audit${query}`, { paged: true });
 }
 
 export function validateBulkArchive(keys) {
@@ -149,6 +158,10 @@ export function listRollouts(key, environment, status) {
     return request(`/flags/${enc(key)}/environments/${enc(environment)}/progressive-rollouts${query}`);
 }
 
+export function getRollout(key, environment, rolloutId) {
+    return request(`/flags/${enc(key)}/environments/${enc(environment)}/progressive-rollouts/${enc(rolloutId)}`);
+}
+
 export function startRollout(key, environment, body) {
     return request(`/flags/${enc(key)}/environments/${enc(environment)}/progressive-rollouts`, {
         method: "POST",
@@ -199,8 +212,13 @@ export function deleteSegment(environment, key, changedBy) {
 
 // Mobile applications
 
-export function listApplications() {
-    return request("/mobile-applications");
+export function listApplications({ page, limit } = {}) {
+    const query = queryString({ page, limit });
+    return request(`/mobile-applications${query}`, { paged: true });
+}
+
+export function getApplication(key) {
+    return request(`/mobile-applications/${enc(key)}`);
 }
 
 export function createApplication(body) {

@@ -3,8 +3,11 @@ import { useAppState } from "../../shared/state/AppStateContext.jsx";
 import { stopRollout } from "../../shared/api/flags.js";
 import ConfirmDialog from "../../shared/ConfirmDialog.jsx";
 import useAction from "../../shared/useAction.js";
-import { formatDateTime, formatDuration, formatEnumLabel, formatRelativeTime, variationColor } from "../../shared/format.js";
+import { formatEnumLabel } from "../../shared/format.js";
+import RolloutCard from "./RolloutCard.jsx";
 import StartRolloutDialog from "./StartRolloutDialog.jsx";
+import { rolloutTargetLabel } from "./rollouts.js";
+import useRolloutRefresh from "./useRolloutRefresh.js";
 
 const FILTERS = [
     { value: "", label: "All" },
@@ -12,13 +15,6 @@ const FILTERS = [
     { value: "COMPLETED", label: "Completed" },
     { value: "STOPPED", label: "Stopped" },
 ];
-
-function stateOf(rollout) {
-    if (rollout.status === "ACTIVE" && new Date(rollout.startAt).getTime() > Date.now()) return { label: "Scheduled", tone: "info" };
-    if (rollout.status === "ACTIVE") return { label: "In progress", tone: "positive" };
-    if (rollout.status === "COMPLETED") return { label: "Completed", tone: "positive" };
-    return { label: "Stopped", tone: "muted" };
-}
 
 function StopDialog({ rollout, flag, environment, onClose, onStopped }) {
     const { actingAs } = useAppState();
@@ -58,96 +54,8 @@ function StopDialog({ rollout, flag, environment, onClose, onStopped }) {
     );
 }
 
-function RolloutCard({ rollout, flag, targetLabel, readOnly, onStop }) {
-    const state = stateOf(rollout);
-    const active = rollout.status === "ACTIVE";
-    const nameOf = (key) => flag.variations.find((variation) => variation.key === key)?.name || key;
-    const fromIndex = flag.variations.findIndex((variation) => variation.key === rollout.fromVariationKey);
-    const toIndex = flag.variations.findIndex((variation) => variation.key === rollout.toVariationKey);
-    const startAt = new Date(rollout.startAt).getTime();
-
-    return (
-        <li className="rollout-card" data-status={rollout.status}>
-            <div className="rollout-head">
-                <div className="rollout-title">
-                    <strong>{targetLabel}</strong>
-                    <span className="badge" data-tone={state.tone}>
-                        {state.label}
-                    </span>
-                </div>
-                {active && !readOnly && (
-                    <button type="button" className="button button-danger" onClick={onStop}>
-                        Stop rollout
-                    </button>
-                )}
-            </div>
-
-            <p className="rollout-route">
-                <span className="variation-dot" style={{ background: variationColor(fromIndex) }} aria-hidden="true" />
-                {nameOf(rollout.fromVariationKey)}
-                <span className="strategy-arrow" aria-hidden="true">
-                    →
-                </span>
-                <span className="variation-dot" style={{ background: variationColor(toIndex) }} aria-hidden="true" />
-                {nameOf(rollout.toVariationKey)}
-            </p>
-
-            <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={rollout.currentPercentage} aria-label="Rollout progress">
-                <div className="progress-fill" style={{ width: `${rollout.currentPercentage}%`, background: variationColor(toIndex) }} />
-            </div>
-            <p className="meta-line rollout-meta">
-                <strong>{rollout.currentPercentage}%</strong> on {nameOf(rollout.toVariationKey)}
-                {active && rollout.nextStageAt && <> · next stage {formatRelativeTime(rollout.nextStageAt)}</>}
-                {active && rollout.completesAt && <> · completes {formatDateTime(rollout.completesAt)}</>}
-                {!active && rollout.endedAt && (
-                    <>
-                        {" "}
-                        · {rollout.status === "COMPLETED" ? "finished" : "stopped"} {formatRelativeTime(rollout.endedAt)}
-                        {rollout.endedBy && rollout.status === "STOPPED" && <> by {rollout.endedBy}</>}
-                        {rollout.resolvedVariationKey && <> · now serves {nameOf(rollout.resolvedVariationKey)}</>}
-                    </>
-                )}
-            </p>
-
-            <details className="rollout-stages">
-                <summary>Schedule ({rollout.stages.length} stages)</summary>
-                <table className="history-table">
-                    <caption className="sr-only">Rollout stages</caption>
-                    <thead>
-                        <tr>
-                            <th scope="col">Stage</th>
-                            <th scope="col">Share</th>
-                            <th scope="col">Starts</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rollout.stages.map((stage, index) => (
-                            <tr key={index} data-current={active && index === rollout.currentStageIndex}>
-                                <td>{index + 1}</td>
-                                <td>{stage.percentage}%</td>
-                                <td>
-                                    {stage.offsetMinutes === 0 ? "At start" : `+${formatDuration(stage.offsetMinutes)}`}
-                                    <span className="hint"> · {formatDateTime(new Date(startAt + stage.offsetMinutes * 60000).toISOString())}</span>
-                                    {active && index === rollout.currentStageIndex && (
-                                        <span className="badge" data-tone="positive">
-                                            Current
-                                        </span>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </details>
-
-            <p className="hint">
-                Started by {rollout.startedBy} {formatRelativeTime(rollout.createdAt)}
-            </p>
-        </li>
-    );
-}
-
-export default function RolloutsTab({ flag, environment, envConfig, rules, rollouts, readOnly, onChanged }) {
+export default function RolloutsTab({ flag, environment, envConfig, rules, rollouts, readOnly, onChanged, onRefresh }) {
+    useRolloutRefresh(rollouts, onRefresh);
     const [filter, setFilter] = useState("");
     const [starting, setStarting] = useState(false);
     const [stopping, setStopping] = useState(null);
@@ -175,15 +83,6 @@ export default function RolloutsTab({ flag, environment, envConfig, rules, rollo
                 label: `Strategy: ${formatEnumLabel(strategy.type)} → ${strategy.servedVariationKey}`,
             })),
     ];
-
-    const labelFor = (rollout) => {
-        if (rollout.ruleId) {
-            const rule = rules.find((entry) => entry.id === rollout.ruleId);
-            return `Rule: ${rule ? rule.description || "Untitled rule" : "deleted rule"}`;
-        }
-        const strategy = envConfig.strategies.find((entry) => entry.id === rollout.strategyId);
-        return `Strategy: ${strategy ? formatEnumLabel(strategy.type) : "removed strategy"}`;
-    };
 
     let blocker = null;
     if (readOnly) blocker = "Restore this flag to start a rollout.";
@@ -228,9 +127,9 @@ export default function RolloutsTab({ flag, environment, envConfig, rules, rollo
                             key={rollout.id}
                             rollout={rollout}
                             flag={flag}
-                            targetLabel={labelFor(rollout)}
-                            readOnly={readOnly}
-                            onStop={() => setStopping(rollout)}
+                            targetLabel={rolloutTargetLabel(rollout, rules, envConfig.strategies)}
+                            detailHref={`/flags/${encodeURIComponent(flag.key)}/rollouts/${encodeURIComponent(rollout.id)}`}
+                            onStop={readOnly ? undefined : () => setStopping(rollout)}
                         />
                     ))}
                 </ul>

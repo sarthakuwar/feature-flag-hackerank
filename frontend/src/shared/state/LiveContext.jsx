@@ -5,7 +5,8 @@ import { useAppState } from "./AppStateContext.jsx";
 const LiveContext = createContext(null);
 
 // One event stream for the selected environment, shared by every page. Pages register a handler with
-// useLiveEvents and refresh their data when another client changes something.
+// useLiveEvents and refresh their data when another client changes something. After the stream reconnects,
+// handlers receive one event of type "resync" and reload everything they show.
 export function LiveProvider({ children }) {
     const { environment } = useAppState();
     const [status, setStatus] = useState("connecting");
@@ -13,9 +14,11 @@ export function LiveProvider({ children }) {
 
     useEffect(() => {
         setStatus("connecting");
+        const dispatch = (event) => handlers.current.forEach((handler) => handler(event));
         return openEventStream(environment, {
             onStatus: setStatus,
-            onEvent: (event) => handlers.current.forEach((handler) => handler(event)),
+            onEvent: dispatch,
+            onResync: () => dispatch({ type: "resync" }),
         });
     }, [environment]);
 

@@ -1,4 +1,5 @@
 import { CONTEXT_KINDS, USER_KIND } from "./targeting.js";
+import useRowKeys from "./useRowKeys.js";
 
 export function emptyEvaluationContext() {
     return { userId: "test-user", attributes: [{ key: "", value: "" }], extraContexts: [] };
@@ -19,14 +20,19 @@ export function toEvaluationRequest(context) {
 }
 
 function AttributeRows({ rows, onChange, label }) {
+    const { keys, removeAt } = useRowKeys(rows.length);
     const update = (index, field, value) => onChange(rows.map((row, position) => (position === index ? { ...row, [field]: value } : row)));
+    const remove = (index) => {
+        removeAt(index);
+        onChange(rows.filter((_, position) => position !== index));
+    };
 
     return (
         <div className="field">
             <span>{label}</span>
             <div className="variation-rows">
                 {rows.map((row, index) => (
-                    <div className="variation-row" key={index}>
+                    <div className="variation-row" key={keys[index]}>
                         <input
                             placeholder="name (e.g. country)"
                             value={row.key}
@@ -43,7 +49,7 @@ function AttributeRows({ rows, onChange, label }) {
                             <button
                                 type="button"
                                 className="button button-ghost"
-                                onClick={() => onChange(rows.filter((_, position) => position !== index))}
+                                onClick={() => remove(index)}
                                 aria-label={`Remove ${label.toLowerCase()} ${index + 1}`}
                             >
                                 ×
@@ -60,6 +66,7 @@ function AttributeRows({ rows, onChange, label }) {
 }
 
 export default function ContextBuilder({ value, onChange }) {
+    const contextKeys = useRowKeys(value.extraContexts.length);
     const setExtra = (index, patch) =>
         onChange({ ...value, extraContexts: value.extraContexts.map((entry, position) => (position === index ? { ...entry, ...patch } : entry)) });
 
@@ -72,7 +79,7 @@ export default function ContextBuilder({ value, onChange }) {
             <AttributeRows label="User attributes" rows={value.attributes} onChange={(attributes) => onChange({ ...value, attributes })} />
 
             {value.extraContexts.map((entry, index) => (
-                <fieldset key={index} className="extra-context">
+                <fieldset key={contextKeys.keys[index]} className="extra-context">
                     <legend>Additional context {index + 1}</legend>
                     <div className="variation-row">
                         <label className="field">
@@ -93,7 +100,10 @@ export default function ContextBuilder({ value, onChange }) {
                     <button
                         type="button"
                         className="button button-ghost"
-                        onClick={() => onChange({ ...value, extraContexts: value.extraContexts.filter((_, position) => position !== index) })}
+                        onClick={() => {
+                            contextKeys.removeAt(index);
+                            onChange({ ...value, extraContexts: value.extraContexts.filter((_, position) => position !== index) });
+                        }}
                     >
                         Remove context
                     </button>

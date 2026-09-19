@@ -53,7 +53,10 @@ class FlagServiceProgressiveRolloutTest {
 
 	@BeforeEach
 	void setUp() {
-		flagService = new FlagService(flagRepository, flagCacheService, flagStreamService, auditService);
+		FlagAccess flagAccess = new FlagAccess(flagRepository);
+		flagService = new FlagService(flagRepository, flagCacheService, flagStreamService, auditService, flagAccess,
+				new FlagVariationService(flagRepository, flagCacheService, flagStreamService, auditService, flagAccess),
+				new FlagArchiveService(flagRepository, flagCacheService, flagStreamService, auditService, flagAccess));
 		lenient().when(flagRepository.save(any(Flag.class))).thenAnswer(invocation -> invocation.getArgument(0));
 	}
 

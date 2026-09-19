@@ -1,7 +1,10 @@
 package com.featureflag.flags.targeting;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -64,6 +67,50 @@ class ClauseMatcherTest {
 		assertThat(matches(attribute("email", ClauseOperator.MATCHES, "acme\\.(io|com)$"), context)).isTrue();
 		assertThat(matches(attribute("email", ClauseOperator.MATCHES, "^bob"), context)).isFalse();
 		assertThat(matches(attribute("email", ClauseOperator.MATCHES, "([unclosed"), context)).as("invalid regex").isFalse();
+	}
+
+	@Test
+	void aCatastrophicRegexIsAbandonedWithinTheStepBudgetAndDoesNotMatch() {
+		UserContext context = user("u1", "bio", "a".repeat(40) + "!");
+
+		assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+			assertThat(matches(attribute("bio", ClauseOperator.MATCHES, "(a+)+$"), context)).isFalse();
+			assertThat(matches(attribute("bio", ClauseOperator.MATCHES, "(a|aa)+$"), context)).isFalse();
+			assertThat(matches(attribute("bio", ClauseOperator.MATCHES, "(x+x+)+y"), user("u1", "bio", "x".repeat(60)))).isFalse();
+		});
+	}
+
+	@Test
+	void anAbortedMatchIsIdenticalOnEveryRun() {
+		Clause clause = attribute("bio", ClauseOperator.MATCHES, "(a|aa)+$");
+		UserContext context = user("u1", "bio", "a".repeat(40) + "!");
+
+		assertThat(matches(clause, context)).isEqualTo(matches(clause, context)).isFalse();
+	}
+
+	@Test
+	void ordinaryRegexesStillMatchWithinTheBudget() {
+		UserContext context = user("u1", "email", "sam.lee@acme.io");
+
+		assertThat(matches(attribute("email", ClauseOperator.MATCHES, "^[a-z.]+@acme\\.(io|com)$"), context)).isTrue();
+		assertThat(matches(attribute("bio", ClauseOperator.MATCHES, "^(a|b)*c$"), user("u1", "bio", "ab".repeat(200) + "c"))).isTrue();
+	}
+
+	@Test
+	void aRegexThatOverflowsTheStackOnLongInputIsANonMatchNotAnError() {
+		UserContext context = user("u1", "bio", "ab".repeat(2_000) + "c");
+
+		assertThat(matches(attribute("bio", ClauseOperator.MATCHES, "^(a|b)*c$"), context)).isFalse();
+	}
+
+	@Test
+	void theBudgetedSequenceThrowsOnceItsStepsAreSpent() {
+		BudgetedCharSequence sequence = new BudgetedCharSequence("abc", 2);
+
+		assertThat(sequence.charAt(0)).isEqualTo('a');
+		assertThat(sequence.charAt(1)).isEqualTo('b');
+		assertThat(sequence.length()).isEqualTo(3);
+		assertThatThrownBy(() -> sequence.charAt(2)).isInstanceOf(BudgetedCharSequence.BudgetExceededException.class);
 	}
 
 	@Test

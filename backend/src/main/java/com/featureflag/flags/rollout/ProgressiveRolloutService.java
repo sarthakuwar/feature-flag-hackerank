@@ -11,11 +11,13 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import com.featureflag.flags.EnvironmentConfig;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
+import com.featureflag.flags.FlagAccess;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagLifecycle;
 import com.featureflag.flags.FlagRepository;
@@ -30,6 +32,7 @@ import com.featureflag.flags.rollout.dto.StartProgressiveRolloutRequest;
 import com.featureflag.flags.targeting.TargetingRule;
 import com.featureflag.shared.ApiException;
 import com.featureflag.shared.FieldErrors;
+import com.featureflag.shared.Validation;
 
 /**
  * The control plane for progressive rollouts: gradually moving a rule's audience from the variation
@@ -56,6 +59,8 @@ public class ProgressiveRolloutService {
 
 	private static final Duration START_CLOCK_SKEW_TOLERANCE = Duration.ofMinutes(1);
 
+	private static final int COMPLETE_ATTEMPTS = 3;
+
 	private final FlagRepository flagRepository;
 
 	private final FlagCacheService flagCacheService;
@@ -66,19 +71,23 @@ public class ProgressiveRolloutService {
 
 	private final Clock clock;
 
+	private final FlagAccess flagAccess;
+
 	public ProgressiveRolloutService(FlagRepository flagRepository, FlagCacheService flagCacheService,
-			FlagStreamService flagStreamService, AuditService auditService, Clock clock) {
+			FlagStreamService flagStreamService, AuditService auditService, Clock clock,
+			FlagAccess flagAccess) {
 		this.flagRepository = flagRepository;
 		this.flagCacheService = flagCacheService;
 		this.flagStreamService = flagStreamService;
 		this.auditService = auditService;
 		this.clock = clock;
+		this.flagAccess = flagAccess;
 	}
 
 	/** Newest first, optionally narrowed to one status. Readable for archived flags too. */
 	public List<ProgressiveRollout> list(String key, EnvironmentKey environment, RolloutStatus status) {
-		Flag flag = getFlag(key);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getFlag(key);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 
 		return config.getProgressiveRollouts().stream()
 				.filter(rollout -> status == null || rollout.getStatus() == status)
@@ -87,18 +96,18 @@ public class ProgressiveRolloutService {
 	}
 
 	public ProgressiveRollout get(String key, EnvironmentKey environment, String rolloutId) {
-		Flag flag = getFlag(key);
+		Flag flag = flagAccess.getFlag(key);
 
-		return findRollout(requireEnvironment(flag, environment), rolloutId, key);
+		return findRollout(FlagAccess.requireEnvironment(flag, environment), rolloutId, key);
 	}
 
 	public ProgressiveRollout start(String key, EnvironmentKey environment, StartProgressiveRolloutRequest request) {
-		Flag flag = getEditableFlag(key);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(key);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		Instant now = clock.instant().truncatedTo(ChronoUnit.MILLIS);
 
 		FieldErrors errors = new FieldErrors();
-		validateRequiredText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 		boolean hasRule = request.ruleId() != null && !request.ruleId().isBlank();
 		boolean hasStrategy = request.strategyId() != null && !request.strategyId().isBlank();
 
@@ -186,12 +195,12 @@ public class ProgressiveRolloutService {
 	 * finish early (choose the new one). Any variation on the flag is a valid choice.
 	 */
 	public ProgressiveRollout stop(String key, EnvironmentKey environment, String rolloutId, String variationKey, String changedBy) {
-		Flag flag = getEditableFlag(key);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(key);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		ProgressiveRollout rollout = findRollout(config, rolloutId, key);
 
 		FieldErrors errors = new FieldErrors();
-		validateRequiredText(changedBy, "changedBy", errors);
+		Validation.requireText(changedBy, "changedBy", errors);
 
 		if (variationKey == null || variationKey.isBlank()) {
 			errors.add("variationKey", "A variation key is required.");
@@ -225,28 +234,28 @@ public class ProgressiveRolloutService {
 	 * Called on a timer. Finds active rollouts whose final stage has begun and makes the rule
 	 * permanently serve the rollout variation. Candidates are found from the in-memory cache (no
 	 * database scan every tick); each is then re-read from the repository and re-checked before
-	 * writing, so a rollout stopped in the meantime is left alone. One flag failing never stops the
-	 * rest. Returns how many rollouts were completed.
+	 * writing, so a rollout stopped in the meantime is left alone. One flag failing, including one
+	 * with a malformed rollout, never stops the rest. A write that loses a race with another writer
+	 * reloads the flag and tries again, so it never overwrites the other change and a rollout is
+	 * completed exactly once. Returns how many rollouts were completed.
 	 */
 	public int completeDueRollouts() {
 		Instant now = clock.instant();
 		List<DueRollout> due = new ArrayList<>();
 
 		for (Flag flag : flagCacheService.all()) {
-			if (flag.getLifecycle() != FlagLifecycle.ACTIVE) {
-				continue;
+			try {
+				collectDue(flag, now, due);
+			} catch (RuntimeException exception) {
+				LOG.error("Skipping progressive rollouts of flag '{}': they could not be read", flag.getKey(), exception);
 			}
-
-			flag.getEnvironments().forEach((environment, config) -> config.activeProgressiveRollout()
-					.filter(rollout -> !rollout.completesAt().isAfter(now))
-					.ifPresent(rollout -> due.add(new DueRollout(flag.getKey(), environment))));
 		}
 
 		int completed = 0;
 
 		for (DueRollout target : due) {
 			try {
-				if (complete(target.flagKey(), target.environment(), now)) {
+				if (completeWithRetry(target.flagKey(), target.environment(), now)) {
 					completed++;
 				}
 			} catch (RuntimeException exception) {
@@ -256,6 +265,30 @@ public class ProgressiveRolloutService {
 		}
 
 		return completed;
+	}
+
+	private void collectDue(Flag flag, Instant now, List<DueRollout> due) {
+		if (flag.getLifecycle() != FlagLifecycle.ACTIVE) {
+			return;
+		}
+
+		flag.getEnvironments().forEach((environment, config) -> config.activeProgressiveRollout()
+				.filter(rollout -> !rollout.completesAt().isAfter(now))
+				.ifPresent(rollout -> due.add(new DueRollout(flag.getKey(), environment))));
+	}
+
+	/** Another writer saved the flag first: {@link #complete} re-reads it, so a retry sees their change and, if they finished the rollout, does nothing. */
+	private boolean completeWithRetry(String key, EnvironmentKey environment, Instant now) {
+		for (int attempt = 1; attempt <= COMPLETE_ATTEMPTS; attempt++) {
+			try {
+				return complete(key, environment, now);
+			} catch (OptimisticLockingFailureException exception) {
+				LOG.warn("Flag '{}' changed while completing its rollout in {} (attempt {} of {})", key, environment, attempt,
+						COMPLETE_ATTEMPTS);
+			}
+		}
+
+		return false;
 	}
 
 	private record DueRollout(String flagKey, EnvironmentKey environment) {
@@ -342,36 +375,4 @@ public class ProgressiveRolloutService {
 						"Flag '" + key + "' has no progressive rollout '" + rolloutId + "'."));
 	}
 
-	private EnvironmentConfig requireEnvironment(Flag flag, EnvironmentKey environment) {
-		EnvironmentConfig config = flag.getEnvironments().get(environment);
-
-		if (config == null) {
-			throw new ApiException(404, "ENVIRONMENT_NOT_FOUND",
-					"Flag '" + flag.getKey() + "' has no configuration for environment '" + environment + "'.");
-		}
-
-		return config;
-	}
-
-	private Flag getFlag(String key) {
-		return flagRepository.findByKey(key)
-				.orElseThrow(() -> new ApiException(404, "FLAG_NOT_FOUND", "No flag exists with key '" + key + "'."));
-	}
-
-	private Flag getEditableFlag(String key) {
-		Flag flag = getFlag(key);
-
-		if (flag.getLifecycle() == FlagLifecycle.ARCHIVED) {
-			throw new ApiException(409, "FLAG_ARCHIVED",
-					"Flag '" + key + "' is archived and cannot be modified. Restore it first.");
-		}
-
-		return flag;
-	}
-
-	private void validateRequiredText(String value, String field, FieldErrors errors) {
-		if (value == null || value.isBlank()) {
-			errors.add(field, "This field is required.");
-		}
-	}
 }

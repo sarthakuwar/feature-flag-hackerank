@@ -4,13 +4,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -18,11 +16,10 @@ import org.springframework.stereotype.Service;
 import com.featureflag.flags.EnvironmentConfig;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
+import com.featureflag.flags.FlagAccess;
 import com.featureflag.flags.FlagCacheService;
-import com.featureflag.flags.FlagLifecycle;
 import com.featureflag.flags.FlagRepository;
 import com.featureflag.flags.FlagStreamService;
-import com.featureflag.flags.UserContext;
 import com.featureflag.flags.Variation;
 import com.featureflag.flags.audit.AuditAction;
 import com.featureflag.flags.audit.AuditService;
@@ -38,6 +35,7 @@ import com.featureflag.flags.targeting.dto.TargetingResponse;
 import com.featureflag.flags.targeting.dto.TargetingRuleRequest;
 import com.featureflag.shared.ApiException;
 import com.featureflag.shared.FieldErrors;
+import com.featureflag.shared.Validation;
 
 /**
  * The write side of a flag environment's targeting: ordered rules (create, edit, enable/disable,
@@ -49,8 +47,6 @@ import com.featureflag.shared.FieldErrors;
 @Service
 public class TargetingService {
 
-	private static final Pattern CONTEXT_KIND_PATTERN = Pattern.compile("^[a-z][a-z0-9_-]{0,49}$");
-
 	private final FlagRepository flagRepository;
 
 	private final SegmentRepository segmentRepository;
@@ -61,27 +57,31 @@ public class TargetingService {
 
 	private final AuditService auditService;
 
+	private final FlagAccess flagAccess;
+
 	public TargetingService(FlagRepository flagRepository, SegmentRepository segmentRepository,
-			FlagCacheService flagCacheService, FlagStreamService flagStreamService, AuditService auditService) {
+			FlagCacheService flagCacheService, FlagStreamService flagStreamService, AuditService auditService,
+			FlagAccess flagAccess) {
 		this.flagRepository = flagRepository;
 		this.segmentRepository = segmentRepository;
 		this.flagCacheService = flagCacheService;
 		this.flagStreamService = flagStreamService;
 		this.auditService = auditService;
+		this.flagAccess = flagAccess;
 	}
 
 	/** Readable for archived flags too - archiving retires a flag from evaluation, it doesn't hide its history. */
 	public TargetingResponse get(String flagKey, EnvironmentKey environment) {
-		Flag flag = loadFlag(flagKey);
+		Flag flag = flagAccess.getFlag(flagKey);
 
-		return TargetingResponse.from(requireEnvironment(flag, environment));
+		return TargetingResponse.from(FlagAccess.requireEnvironment(flag, environment));
 	}
 
 	public TargetingRule createRule(String flagKey, EnvironmentKey environment, TargetingRuleRequest request) {
-		Flag flag = loadEditableFlag(flagKey);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(flagKey);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
 		TargetingRule rule = buildRule(UUID.randomUUID().toString(), request, request.enabled() == null || request.enabled(),
 				false, flag, environment, errors);
@@ -110,14 +110,14 @@ public class TargetingService {
 
 	/** Replaces a rule's conditions and served variation in place; a null enabled keeps its current state. */
 	public TargetingRule updateRule(String flagKey, EnvironmentKey environment, String ruleId, TargetingRuleRequest request) {
-		Flag flag = loadEditableFlag(flagKey);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(flagKey);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		int index = indexOfRule(config, ruleId);
 		TargetingRule existing = config.getRules().get(index);
 		requireUpdateCompatibleWithActiveRollout(config, existing, request);
 
 		FieldErrors errors = new FieldErrors();
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
 		TargetingRule updated = buildRule(ruleId, request, request.enabled() == null ? existing.isEnabled() : request.enabled(),
 				existing.isIncludeInExperiment(), flag, environment, errors);
@@ -135,10 +135,12 @@ public class TargetingService {
 	}
 
 	/**
-	 * While a progressive rollout is ramping a rule, its audience (clauses), description, order and
-	 * enabled state can all change, but not what it serves: that is the rollout's "from", and turning it
-	 * into a percentage rollout would leave the ramp with nothing to move away from. Stopping the
-	 * rollout first is how a caller decides what the rule serves instead.
+	 * While a progressive rollout is ramping a rule, its audience (clauses), description and order can
+	 * change, but not what it serves (that is the rollout's "from", and turning it into a percentage
+	 * rollout would leave the ramp with nothing to move away from) and it cannot be switched off (a
+	 * disabled rule serves nobody, so the ramp would advance unseen, which is what
+	 * ProgressiveRolloutService rejects at start). Stopping the rollout first is how a caller decides
+	 * what the rule serves, or turns it off, instead.
 	 */
 	private void requireUpdateCompatibleWithActiveRollout(EnvironmentConfig config, TargetingRule existing,
 			TargetingRuleRequest request) {
@@ -152,34 +154,53 @@ public class TargetingService {
 			throw new ApiException(409, "ROLLOUT_IN_PROGRESS", "Rule '" + existing.getId()
 					+ "' has an active progressive rollout, so the variation it serves cannot change; stop the rollout first.");
 		}
+
+		if (Boolean.FALSE.equals(request.enabled())) {
+			throw rolloutBlocksDisabling(existing);
+		}
 	}
 
 	/** Disabling keeps the rule (and its position) but evaluation skips it; enabling puts it straight back to work. */
 	public TargetingRule setRuleEnabled(String flagKey, EnvironmentKey environment, String ruleId, RuleEnabledRequest request) {
-		Flag flag = loadEditableFlag(flagKey);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(flagKey);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
+
+		if (request.enabled() == null) {
+			errors.add("enabled", "Enabled is required (true or false).");
+		}
+
 		errors.throwIfAny();
 
 		TargetingRule rule = config.getRules().get(indexOfRule(config, ruleId));
+		boolean enabled = request.enabled();
 
-		if (rule.isEnabled() == request.enabled()) {
+		if (rule.isEnabled() == enabled) {
 			return rule;
 		}
 
-		rule.setEnabled(request.enabled());
-		save(flag, environment, request.changedBy(), (request.enabled() ? "Enabled" : "Disabled") + " targeting rule "
+		if (!enabled && config.activeRolloutForRule(ruleId).isPresent()) {
+			throw rolloutBlocksDisabling(rule);
+		}
+
+		rule.setEnabled(enabled);
+		save(flag, environment, request.changedBy(), (enabled ? "Enabled" : "Disabled") + " targeting rule "
 				+ describe(rule) + " in " + environment.name().toLowerCase() + ".");
 
 		return rule;
 	}
 
+	private ApiException rolloutBlocksDisabling(TargetingRule rule) {
+		return new ApiException(409, "ROLLOUT_IN_PROGRESS", "Rule '" + rule.getId()
+				+ "' has an active progressive rollout and cannot be disabled; stop the rollout first.");
+	}
+
 	public TargetingResponse deleteRule(String flagKey, EnvironmentKey environment, String ruleId, String changedBy) {
-		Flag flag = loadEditableFlag(flagKey);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(flagKey);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		FieldErrors errors = new FieldErrors();
-		requireText(changedBy, "changedBy", errors);
+		Validation.requireText(changedBy, "changedBy", errors);
 		errors.throwIfAny();
 
 		int index = indexOfRule(config, ruleId);
@@ -198,10 +219,10 @@ public class TargetingService {
 
 	/** The request must be a permutation of the current rule ids, so a stale client can't silently drop or duplicate a rule. */
 	public TargetingResponse reorderRules(String flagKey, EnvironmentKey environment, RuleOrderRequest request) {
-		Flag flag = loadEditableFlag(flagKey);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(flagKey);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
 		List<String> requested = request.ruleIds() == null ? List.of() : request.ruleIds();
 		Map<String, TargetingRule> existingById = new LinkedHashMap<>();
@@ -227,10 +248,10 @@ public class TargetingService {
 
 	/** Moving the first rule up or the last rule down is a no-op success, not an error: nothing is saved or broadcast. */
 	public TargetingResponse moveRule(String flagKey, EnvironmentKey environment, String ruleId, RuleMoveRequest request) {
-		Flag flag = loadEditableFlag(flagKey);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(flagKey);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
 		if (request.direction() == null) {
 			errors.add("direction", "Direction is required (UP or DOWN).");
@@ -256,10 +277,10 @@ public class TargetingService {
 	/** Replaces every individual target in the environment. Entries with no keys are dropped. */
 	public TargetingResponse replaceIndividualTargets(String flagKey, EnvironmentKey environment,
 			IndividualTargetsRequest request) {
-		Flag flag = loadEditableFlag(flagKey);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(flagKey);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
 		Set<String> variationKeys = variationKeysOf(flag);
 		List<IndividualTargetRequest> requested = request.targets() == null ? List.of() : request.targets();
@@ -275,10 +296,11 @@ public class TargetingService {
 				continue;
 			}
 
-			String kind = normalizeKind(target.contextKind());
-			validateKind(kind, field + ".contextKind", errors);
-			validateVariationReference(target.variationKey(), variationKeys, field + ".variationKey", errors);
-			Set<String> keys = cleanKeys(target.keys(), field + ".keys", errors);
+			String kind = TargetingValidation.normalizeKind(target.contextKind());
+			TargetingValidation.validateKind(kind, field + ".contextKind", errors);
+			Validation.validateVariationReference(target.variationKey(), variationKeys, field + ".variationKey", errors);
+			Set<String> keys = TargetingValidation.cleanKeys(target.keys(),
+					TargetingLimits.MAX_INDIVIDUAL_KEYS_PER_ENVIRONMENT, field + ".keys", errors);
 
 			for (String key : keys) {
 				String previous = variationByKindAndKey.computeIfAbsent(kind, unused -> new HashMap<>()).put(key,
@@ -315,20 +337,20 @@ public class TargetingService {
 	 * how many keys actually changed state versus already were there.
 	 */
 	public BulkTargetResponse bulkTarget(String flagKey, EnvironmentKey environment, BulkTargetRequest request) {
-		Flag flag = loadEditableFlag(flagKey);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(flagKey);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 
-		String kind = normalizeKind(request.contextKind());
-		validateKind(kind, "contextKind", errors);
-		validateVariationReference(request.variationKey(), variationKeysOf(flag), "variationKey", errors);
+		String kind = TargetingValidation.normalizeKind(request.contextKind());
+		TargetingValidation.validateKind(kind, "contextKind", errors);
+		Validation.validateVariationReference(request.variationKey(), variationKeysOf(flag), "variationKey", errors);
 
 		if (request.operation() == null) {
 			errors.add("operation", "Operation is required (ADD or REMOVE).");
 		}
 
-		Set<String> keys = cleanKeys(request.keys(), "keys", errors);
+		Set<String> keys = TargetingValidation.cleanKeys(request.keys(), TargetingLimits.MAX_INDIVIDUAL_KEYS_PER_ENVIRONMENT, "keys", errors);
 
 		if (keys.isEmpty() && !errors.has("keys")) {
 			errors.add("keys", "At least one key is required.");
@@ -423,7 +445,7 @@ public class TargetingService {
 			validateRollout(request.rolloutWeights(), variationKeys, errors);
 			rule.setRolloutWeights(new LinkedHashMap<>(request.rolloutWeights()));
 		} else {
-			validateVariationReference(request.servedVariationKey(), variationKeys, "servedVariationKey", errors);
+			Validation.validateVariationReference(request.servedVariationKey(), variationKeys, "servedVariationKey", errors);
 			rule.setServedVariationKey(request.servedVariationKey());
 		}
 
@@ -488,54 +510,6 @@ public class TargetingService {
 		return targets.stream().mapToInt(target -> target.getKeys().size()).sum();
 	}
 
-	private Set<String> cleanKeys(List<String> raw, String field, FieldErrors errors) {
-		Set<String> keys = new LinkedHashSet<>();
-
-		if (raw == null) {
-			return keys;
-		}
-
-		if (raw.size() > TargetingLimits.MAX_INDIVIDUAL_KEYS_PER_ENVIRONMENT) {
-			errors.add(field, "At most " + TargetingLimits.MAX_INDIVIDUAL_KEYS_PER_ENVIRONMENT + " keys per request.");
-
-			return keys;
-		}
-
-		for (String key : raw) {
-			String trimmed = key == null ? "" : key.trim();
-
-			if (trimmed.isEmpty()) {
-				continue;
-			}
-
-			if (trimmed.length() > TargetingLimits.MAX_VALUE_LENGTH) {
-				errors.add(field, "Each key must be at most " + TargetingLimits.MAX_VALUE_LENGTH + " characters.");
-			} else {
-				keys.add(trimmed);
-			}
-		}
-
-		return keys;
-	}
-
-	private String normalizeKind(String kind) {
-		return kind == null || kind.isBlank() ? UserContext.USER_KIND : kind;
-	}
-
-	private void validateKind(String kind, String field, FieldErrors errors) {
-		if (!CONTEXT_KIND_PATTERN.matcher(kind).matches()) {
-			errors.add(field, "Context kind must be lowercase letters, numbers, underscores and hyphens, starting with a letter.");
-		}
-	}
-
-	private void validateVariationReference(String variationKey, Set<String> variationKeys, String field, FieldErrors errors) {
-		if (variationKey == null || variationKey.isBlank()) {
-			errors.add(field, "A variation key is required.");
-		} else if (!variationKeys.contains(variationKey)) {
-			errors.add(field, "'" + variationKey + "' does not match a variation on this flag.");
-		}
-	}
-
 	private Set<String> variationKeysOf(Flag flag) {
 		return flag.getVariations().stream().map(Variation::getKey).collect(Collectors.toSet());
 	}
@@ -563,36 +537,4 @@ public class TargetingService {
 		return rule.getDescription() == null ? "'" + rule.getId() + "'" : "'" + rule.getDescription() + "'";
 	}
 
-	private Flag loadFlag(String flagKey) {
-		return flagRepository.findByKey(flagKey)
-				.orElseThrow(() -> new ApiException(404, "FLAG_NOT_FOUND", "No flag exists with key '" + flagKey + "'."));
-	}
-
-	private Flag loadEditableFlag(String flagKey) {
-		Flag flag = loadFlag(flagKey);
-
-		if (flag.getLifecycle() == FlagLifecycle.ARCHIVED) {
-			throw new ApiException(409, "FLAG_ARCHIVED",
-					"Flag '" + flag.getKey() + "' is archived and cannot be modified. Restore it first.");
-		}
-
-		return flag;
-	}
-
-	private EnvironmentConfig requireEnvironment(Flag flag, EnvironmentKey environment) {
-		EnvironmentConfig config = flag.getEnvironments().get(environment);
-
-		if (config == null) {
-			throw new ApiException(404, "ENVIRONMENT_NOT_FOUND",
-					"Flag '" + flag.getKey() + "' has no configuration for environment '" + environment + "'.");
-		}
-
-		return config;
-	}
-
-	private void requireText(String value, String field, FieldErrors errors) {
-		if (value == null || value.isBlank()) {
-			errors.add(field, "This field is required.");
-		}
-	}
 }

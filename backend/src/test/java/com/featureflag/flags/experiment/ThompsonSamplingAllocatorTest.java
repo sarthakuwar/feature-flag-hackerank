@@ -1,7 +1,9 @@
 package com.featureflag.flags.experiment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -67,5 +69,81 @@ class ThompsonSamplingAllocatorTest {
 
 		assertThat(weights).containsOnlyKeys("a", "b", "c");
 		assertThat(weights.values()).allMatch(weight -> weight >= 0);
+	}
+
+	@Test
+	void moreConversionsThanImpressionsStillTerminatesAndSumsToOneHundred() {
+		ThompsonSamplingAllocator allocator = new ThompsonSamplingAllocator(new Random(11));
+		List<VariationMetrics> metrics = List.of(new VariationMetrics("a", 3, 50, 16.7, null),
+				new VariationMetrics("b", 100, 10, 0.10, null));
+
+		Map<String, Integer> weights = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> allocator.allocate(metrics, null));
+
+		assertThat(weights).containsOnlyKeys("a", "b");
+		assertThat(weights.values()).allMatch(weight -> weight >= 0);
+		assertThat(weights.values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(100);
+	}
+
+	@Test
+	void conversionsWithNoImpressionsAtAllStillTerminatesAndSumsToOneHundred() {
+		ThompsonSamplingAllocator allocator = new ThompsonSamplingAllocator(new Random(12));
+		List<VariationMetrics> metrics = List.of(new VariationMetrics("a", 0, 5, 0.0, null),
+				new VariationMetrics("b", 0, 0, 0.0, null), new VariationMetrics("c", 0, 1000, 0.0, null));
+
+		Map<String, Integer> weights = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> allocator.allocate(metrics, null));
+
+		assertThat(weights.values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(100);
+	}
+
+	@Test
+	void zeroImpressionsAndZeroConversionsSplitTheTrafficAndSumToOneHundred() {
+		ThompsonSamplingAllocator allocator = new ThompsonSamplingAllocator(new Random(13));
+		List<VariationMetrics> metrics = List.of(new VariationMetrics("a", 0, 0, 0.0, null),
+				new VariationMetrics("b", 0, 0, 0.0, null));
+
+		Map<String, Integer> weights = allocator.allocate(metrics, null);
+
+		assertThat(weights.get("a")).isBetween(35, 65);
+		assertThat(weights.values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(100);
+	}
+
+	@Test
+	void hugeCountsTerminateAndTheBetterVariationWins() {
+		ThompsonSamplingAllocator allocator = new ThompsonSamplingAllocator(new Random(14));
+		long huge = 4_000_000_000_000_000_000L;
+		List<VariationMetrics> metrics = List.of(new VariationMetrics("weak", huge, huge / 100, 0.01, null),
+				new VariationMetrics("strong", huge, huge / 2, 0.5, null));
+
+		Map<String, Integer> weights = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> allocator.allocate(metrics, null));
+
+		assertThat(weights.get("strong")).isGreaterThan(weights.get("weak"));
+		assertThat(weights.values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(100);
+	}
+
+	@Test
+	void aBrokenRandomSourceCannotSpinTheSamplerForever() {
+		Random neverAcceptable = new Random(1) {
+
+			@Override
+			public double nextGaussian() {
+				return -1e9;
+			}
+		};
+		Random notANumber = new Random(1) {
+
+			@Override
+			public double nextGaussian() {
+				return Double.NaN;
+			}
+		};
+		List<VariationMetrics> metrics = List.of(new VariationMetrics("a", 10, 2, 0.2, null),
+				new VariationMetrics("b", 10, 5, 0.5, null));
+
+		for (Random broken : List.of(neverAcceptable, notANumber)) {
+			Map<String, Integer> weights = assertTimeoutPreemptively(Duration.ofSeconds(10),
+					() -> new ThompsonSamplingAllocator(broken).allocate(metrics, null));
+
+			assertThat(weights.values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(100);
+		}
 	}
 }

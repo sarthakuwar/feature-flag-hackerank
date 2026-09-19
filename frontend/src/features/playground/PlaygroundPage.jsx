@@ -7,6 +7,7 @@ import ContextBuilder, { emptyEvaluationContext, toEvaluationRequest } from "../
 import ErrorBanner from "../../shared/ErrorBanner.jsx";
 import TabList, { tabPanelProps } from "../../shared/TabList.jsx";
 import useAction from "../../shared/useAction.js";
+import useCopied from "../../shared/useCopied.js";
 import useResource from "../../shared/useResource.js";
 import { formatDateTime, formatEnumLabel } from "../../shared/format.js";
 
@@ -96,14 +97,13 @@ function EvaluateAll() {
 }
 
 function JsonPanel({ title, hint, resource }) {
-    const [copied, setCopied] = useState(false);
+    const [copied, flashCopied] = useCopied();
     const text = resource.data ? JSON.stringify(resource.data, null, 2) : "";
 
     const copy = async () => {
         try {
             await navigator.clipboard.writeText(text);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
+            flashCopied();
         } catch {
             // Clipboard access can be blocked by permissions; the JSON stays selectable on screen.
         }
@@ -146,6 +146,7 @@ function LiveLog() {
     const [events, setEvents] = useState([]);
 
     useLiveEvents((event) => {
+        if (event.type === "resync") return;
         setEvents((previous) => [{ ...event, receivedAt: new Date().toISOString() }, ...previous].slice(0, MAX_LOGGED_EVENTS));
     });
 
@@ -180,6 +181,12 @@ function SdkData() {
     const bootstrap = useResource(() => getBootstrap(environment), [environment]);
     const segments = useResource(() => getSegmentFeed(environment), [environment]);
     const applications = useResource(() => getApplicationFeed(), []);
+    useLiveEvents((event) => {
+        if (event.type !== "resync") return;
+        bootstrap.reload();
+        segments.reload();
+        applications.reload();
+    });
 
     return (
         <>

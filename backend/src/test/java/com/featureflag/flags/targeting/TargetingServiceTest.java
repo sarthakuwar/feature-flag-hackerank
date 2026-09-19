@@ -29,11 +29,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.featureflag.flags.EnvironmentConfig;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
+import com.featureflag.flags.FlagAccess;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagLifecycle;
 import com.featureflag.flags.FlagRepository;
 import com.featureflag.flags.FlagStreamService;
 import com.featureflag.flags.FlagType;
+import com.featureflag.flags.ProgressiveRollout;
+import com.featureflag.flags.RolloutStatus;
 import com.featureflag.flags.Variation;
 import com.featureflag.flags.audit.AuditAction;
 import com.featureflag.flags.audit.AuditService;
@@ -77,7 +80,7 @@ class TargetingServiceTest {
 	@BeforeEach
 	void setUp() {
 		targetingService = new TargetingService(flagRepository, segmentRepository, flagCacheService, flagStreamService,
-				auditService);
+				auditService, new FlagAccess(flagRepository));
 		flag = booleanFlag("targeted-flag");
 		lenient().when(flagRepository.findByKey("targeted-flag")).thenReturn(Optional.of(flag));
 		lenient().when(flagRepository.save(any(Flag.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -185,6 +188,20 @@ class TargetingServiceTest {
 
 		assertThat(fieldErrors(() -> targetingService.createRule("targeted-flag", ENV,
 				ruleRequest("x", "on", segmentClause("orgs"))))).containsKey("clauses[0].values");
+	}
+
+	@Test
+	void createRuleRejectsCatastrophicRegexesButAcceptsOrdinaryOnes() {
+		for (String pattern : List.of("(a+)+$", "(.*)*x", "(a|aa)+b", "((a+))+", "(a*){1,}$")) {
+			assertThat(fieldErrors(() -> targetingService.createRule("targeted-flag", ENV,
+					ruleRequest("x", "on", clause("e", ClauseOperator.MATCHES, pattern))))).as(pattern).containsKey("clauses[0].values");
+		}
+
+		assertThat(RegexSafety.catastrophicReason("^[a-z0-9._-]+@acme\\.(io|com)$")).isEmpty();
+		assertThat(RegexSafety.catastrophicReason("(\\w+\\.)+com")).isEmpty();
+		assertThat(RegexSafety.catastrophicReason("(?:ab|cd)+")).isEmpty();
+		assertThat(RegexSafety.catastrophicReason("(a++)+")).as("possessive").isEmpty();
+		assertThat(RegexSafety.catastrophicReason("(?<year>\\d{4})-\\d{2}")).isEmpty();
 	}
 
 	@Test
@@ -696,6 +713,70 @@ class TargetingServiceTest {
 	private TargetingRule createRollout(Map<String, Integer> weights) {
 		return targetingService.createRule("targeted-flag", ENV,
 				new TargetingRuleRequest("rollout", null, List.of(proClause()), null, weights, null, "tester"));
+	}
+
+	// ---- a rule being ramped cannot be switched off; a missing enabled flag is an error ----
+
+	@Test
+	void aRuleWithAnActiveRolloutCannotBeDisabledButCanStillBeEnabledOrEdited() {
+		TargetingRule ramped = targetingService.createRule("targeted-flag", ENV, ruleRequest("ramped", "off", proClause()));
+		activeRolloutOn(ramped);
+
+		assertThatThrownBy(() -> targetingService.setRuleEnabled("targeted-flag", ENV, ramped.getId(), new RuleEnabledRequest(false, "tester")))
+				.isInstanceOfSatisfying(ApiException.class, exception -> {
+					assertThat(exception.getStatusCode()).isEqualTo(409);
+					assertThat(exception.getCode()).isEqualTo("ROLLOUT_IN_PROGRESS");
+				});
+		assertThat(ramped.isEnabled()).isTrue();
+
+		org.mockito.Mockito.clearInvocations(flagRepository, flagStreamService);
+		targetingService.setRuleEnabled("targeted-flag", ENV, ramped.getId(), new RuleEnabledRequest(true, "tester"));
+
+		verify(flagRepository, never()).save(any());
+		targetingService.updateRule("targeted-flag", ENV, ramped.getId(), ruleRequest("renamed", "off", clause("country", ClauseOperator.IN, "US")));
+		assertThat(config().getRules().get(0).getDescription()).isEqualTo("renamed");
+	}
+
+	@Test
+	void updatingARampedRuleCannotDisableItEither() {
+		TargetingRule ramped = targetingService.createRule("targeted-flag", ENV, ruleRequest("ramped", "off", proClause()));
+		activeRolloutOn(ramped);
+		TargetingRuleRequest disabling = new TargetingRuleRequest("ramped", false, List.of(proClause()), "off", null, null, "tester");
+
+		assertThatThrownBy(() -> targetingService.updateRule("targeted-flag", ENV, ramped.getId(), disabling))
+				.isInstanceOfSatisfying(ApiException.class, exception -> assertThat(exception.getCode()).isEqualTo("ROLLOUT_IN_PROGRESS"));
+		assertThat(config().getRules().get(0).isEnabled()).isTrue();
+	}
+
+	@Test
+	void aRuleWhoseRolloutHasEndedCanBeDisabledAgain() {
+		TargetingRule rule = targetingService.createRule("targeted-flag", ENV, ruleRequest("ramped", "off", proClause()));
+		activeRolloutOn(rule).setStatus(RolloutStatus.STOPPED);
+
+		targetingService.setRuleEnabled("targeted-flag", ENV, rule.getId(), new RuleEnabledRequest(false, "tester"));
+
+		assertThat(rule.isEnabled()).isFalse();
+	}
+
+	@Test
+	void setRuleEnabledRequiresTheEnabledFieldInsteadOfSilentlyDisablingTheRule() {
+		TargetingRule rule = targetingService.createRule("targeted-flag", ENV, ruleRequest("x", "on", proClause()));
+
+		Map<String, List<String>> errors = fieldErrors(
+				() -> targetingService.setRuleEnabled("targeted-flag", ENV, rule.getId(), new RuleEnabledRequest(null, "tester")));
+
+		assertThat(errors).containsKey("enabled");
+		assertThat(rule.isEnabled()).isTrue();
+	}
+
+	private ProgressiveRollout activeRolloutOn(TargetingRule rule) {
+		ProgressiveRollout rollout = new ProgressiveRollout();
+		rollout.setId("rollout-1");
+		rollout.setRuleId(rule.getId());
+		rollout.setStatus(RolloutStatus.ACTIVE);
+		config().getProgressiveRollouts().add(rollout);
+
+		return rollout;
 	}
 
 	private EnvironmentConfig config() {

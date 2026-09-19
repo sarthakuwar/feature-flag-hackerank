@@ -2,8 +2,11 @@ package com.featureflag.flags;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +28,8 @@ import com.featureflag.flags.dto.StrategyRequest;
 import com.featureflag.flags.dto.VariationRequest;
 import com.featureflag.flags.metrics.ImpressionEvent;
 import com.featureflag.flags.metrics.ImpressionRepository;
+import com.featureflag.flags.targeting.IndividualTarget;
+import com.featureflag.flags.metrics.ImpressionWriter;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -44,6 +49,9 @@ class FlagEvalControllerIT {
 
 	@Autowired
 	private ImpressionRepository impressionRepository;
+
+	@Autowired
+	private ImpressionWriter impressionWriter;
 
 	@BeforeEach
 	@AfterEach
@@ -106,6 +114,21 @@ class FlagEvalControllerIT {
 	}
 
 	@Test
+	void anUnknownEnvironmentInTheEvaluationPathIsABadRequestNamingTheParameter() {
+		ResponseEntity<Map> single = restTemplate.postForEntity("/api/v1/eval/BOGUS/some-flag", new EvaluationRequest("u1", Map.of()), Map.class);
+		ResponseEntity<Map> bootstrap = restTemplate.getForEntity("/api/v1/eval/BOGUS/bootstrap", Map.class);
+
+		for (ResponseEntity<Map> response : List.of(single, bootstrap)) {
+			assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+			Map<String, Object> error = (Map<String, Object>) response.getBody().get("error");
+			assertThat(error.get("code")).isEqualTo("VALIDATION_ERROR");
+			Map<String, Object> fieldErrors = (Map<String, Object>) ((Map<String, Object>) error.get("details")).get("fieldErrors");
+			assertThat(fieldErrors).containsOnlyKeys("environment");
+			assertThat(fieldErrors.get("environment").toString()).contains("DEVELOPMENT", "STAGING", "PRODUCTION").doesNotContain("BOGUS");
+		}
+	}
+
+	@Test
 	void evaluatingUnknownFlagReturnsNotFound() {
 		ResponseEntity<Map> response = restTemplate.postForEntity("/api/v1/eval/PRODUCTION/does-not-exist",
 				new EvaluationRequest("u1", Map.of()), Map.class);
@@ -137,24 +160,21 @@ class FlagEvalControllerIT {
 		assertThat(strategies).hasSize(2);
 	}
 
-	/**
-	 * Impression recording is synchronous (see MetricsService.recordImpression), so the impression is
-	 * already stored when the HTTP response comes back: asserted immediately, deliberately with no
-	 * polling, because a conversion sent right after an evaluation depends on exactly that.
-	 */
+	/** Impressions are queued and written in the background; flush() is the deterministic seam that waits for them. */
 	@Test
-	void evaluatingASingleFlagRecordsTheImpressionBeforeTheResponseReturns() {
+	void evaluatingASingleFlagRecordsTheImpression() {
 		createFlag("impression-flag");
 
 		restTemplate.postForEntity("/api/v1/eval/PRODUCTION/impression-flag", new EvaluationRequest("user-1", Map.of()),
 				Map.class);
+		impressionWriter.flush();
 
 		List<ImpressionEvent> events = impressionRepository.findByFlagKeyAndEnvironment("impression-flag", EnvironmentKey.PRODUCTION);
 
 		assertThat(events).hasSize(1);
 		assertThat(events.get(0).getUserId()).isEqualTo("user-1");
 		assertThat(events.get(0).getVariationKey()).isEqualTo("off");
-		assertThat(events.get(0).isIncludedInExperiment()).isTrue();
+		assertThat(events.get(0).isIncludedInExperiment()).as("a disabled flag assigns no one to a variation").isFalse();
 	}
 
 	/** Bulk-evaluate isn't "one SDK evaluating one flag for one user," so it never emits impressions. */
@@ -163,17 +183,196 @@ class FlagEvalControllerIT {
 		createFlag("no-impression-flag");
 
 		restTemplate.postForEntity("/api/v1/eval/PRODUCTION", new EvaluationRequest("user-1", Map.of()), Map.class);
+		impressionWriter.flush();
 
 		assertThat(impressionRepository.findByFlagKeyAndEnvironment("no-impression-flag", EnvironmentKey.PRODUCTION)).isEmpty();
+	}
+
+	@Test
+	void bootstrapExposesOnlyWhatLocalEvaluationNeedsAndAlwaysHasAnEnvironment() {
+		createFlag("bootstrap-shape");
+		Flag flag = flagRepository.findByKey("bootstrap-shape").orElseThrow();
+		flag.setDependsOn(List.of("some-prerequisite"));
+		EnvironmentConfig production = flag.getEnvironments().get(EnvironmentKey.PRODUCTION);
+		production.setEnabled(true);
+		production.getProgressiveRollouts().add(rollout("finished", RolloutStatus.COMPLETED));
+		production.getProgressiveRollouts().add(rollout("running", RolloutStatus.ACTIVE));
+		flag.getEnvironments().remove(EnvironmentKey.STAGING);
+		flagRepository.save(flag);
+		flagCacheService.load();
+
+		Map<String, Object> bootstrapped = bootstrapOf("PRODUCTION", "bootstrap-shape");
+		Map<String, Object> environment = (Map<String, Object>) bootstrapped.get("environment");
+		List<Map<String, Object>> rollouts = (List<Map<String, Object>>) environment.get("progressiveRollouts");
+
+		assertThat(bootstrapped.get("dependsOn")).isEqualTo(List.of("some-prerequisite"));
+		assertThat(environment).containsOnlyKeys("enabled", "offVariationKey", "strategies", "individualTargets", "rules",
+				"progressiveRollouts");
+		assertThat(rollouts).as("history stays on the admin API").hasSize(1);
+		assertThat(rollouts.get(0)).containsOnlyKeys("id", "strategyId", "ruleId", "fromVariationKey", "toVariationKey", "stages",
+				"startAt");
+		assertThat(rollouts.get(0).get("id")).isEqualTo("running");
+
+		Map<String, Object> unconfigured = (Map<String, Object>) bootstrapOf("STAGING", "bootstrap-shape").get("environment");
+
+		assertThat(unconfigured).as("a missing environment bootstraps as a disabled one").isNotNull();
+		assertThat(unconfigured.get("enabled")).isEqualTo(false);
+		assertThat(unconfigured.get("offVariationKey")).isEqualTo("off");
+		assertThat((List<?>) unconfigured.get("rules")).isEmpty();
+	}
+
+	@Test
+	void bothEvaluationRoutesRejectOversizedRequestsWithFieldErrors() {
+		createFlag("limits-flag");
+		EvaluationRequest tooLong = new EvaluationRequest("u".repeat(257), Map.of());
+		EvaluationRequest atLimit = new EvaluationRequest("u".repeat(256), Map.of());
+
+		for (String url : List.of("/api/v1/eval/PRODUCTION/limits-flag", "/api/v1/eval/PRODUCTION")) {
+			ResponseEntity<Map> rejected = restTemplate.postForEntity(url, tooLong, Map.class);
+			Map<String, Object> error = (Map<String, Object>) rejected.getBody().get("error");
+			Map<String, Object> details = (Map<String, Object>) error.get("details");
+
+			assertThat(rejected.getStatusCode()).as(url).isEqualTo(HttpStatus.BAD_REQUEST);
+			assertThat(error.get("code")).isEqualTo("VALIDATION_ERROR");
+			assertThat((Map<String, Object>) details.get("fieldErrors")).containsKey("userId");
+			assertThat(restTemplate.postForEntity(url, atLimit, Map.class).getStatusCode()).as(url).isEqualTo(HttpStatus.OK);
+		}
+	}
+
+	@Test
+	void anOversizedContextsMapIsRejectedBeforeAnyImpressionIsRecorded() {
+		createFlag("contexts-flag");
+		Map<String, EvaluationRequest.ContextRequest> contexts = new LinkedHashMap<>();
+
+		for (int index = 0; index < 21; index++) {
+			contexts.put("kind-" + index, new EvaluationRequest.ContextRequest("key", Map.of()));
+		}
+
+		ResponseEntity<Map> response = restTemplate.postForEntity("/api/v1/eval/PRODUCTION/contexts-flag",
+				new EvaluationRequest("u", Map.of(), contexts), Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(impressionRepository.findByFlagKeyAndEnvironment("contexts-flag", EnvironmentKey.PRODUCTION)).isEmpty();
+	}
+
+	@Test
+	void aFailedPrerequisiteServesTheOffVariationNamesItAndStaysOutOfTheExperiment() {
+		createFlag("base-flag");
+		createFlag("dependent-flag", "base-flag");
+		enable("base-flag", true);
+		enable("dependent-flag", true);
+
+		assertThat(evaluateOne("dependent-flag", "u1").get("reason")).isEqualTo("FALLTHROUGH");
+
+		enable("base-flag", false);
+		Map<String, Object> failed = evaluateOne("dependent-flag", "u1");
+
+		assertThat(failed.get("reason")).isEqualTo("PREREQUISITE_FAILED");
+		assertThat(failed.get("variationKey")).isEqualTo("off");
+		assertThat(failed.get("failedPrerequisiteKey")).isEqualTo("base-flag");
+		assertThat(failed.get("includedInExperiment")).isEqualTo(false);
+		impressionWriter.flush();
+		assertThat(impressionRepository.findByFlagKeyAndEnvironment("dependent-flag", EnvironmentKey.PRODUCTION))
+				.extracting(ImpressionEvent::isIncludedInExperiment).containsOnly(false);
+	}
+
+	@Test
+	void aFailedPrerequisiteBeatsAnIndividualTarget() {
+		createFlag("base-flag");
+		createFlag("dependent-flag", "base-flag");
+		enable("dependent-flag", true);
+		Flag dependent = flagRepository.findByKey("dependent-flag").orElseThrow();
+		dependent.getEnvironments().get(EnvironmentKey.PRODUCTION).getIndividualTargets()
+				.add(new IndividualTarget("user", "on", Set.of("vip")));
+		flagRepository.save(dependent);
+		flagCacheService.load();
+
+		assertThat(evaluateOne("dependent-flag", "vip").get("reason")).isEqualTo("PREREQUISITE_FAILED");
+
+		enable("base-flag", true);
+		Map<String, Object> targeted = evaluateOne("dependent-flag", "vip");
+
+		assertThat(targeted.get("reason")).isEqualTo("INDIVIDUAL_TARGET");
+		assertThat(targeted.get("variationKey")).isEqualTo("on");
+	}
+
+	@Test
+	void bulkEvaluationReturnsExactlyOneResultForEveryActiveFlagWhateverItsState() {
+		createFlag("all-enabled");
+		enable("all-enabled", true);
+		createFlag("all-disabled");
+		createFlag("all-failing", "all-enabled");
+		enable("all-failing", true);
+		createFlag("all-unconfigured");
+		Flag unconfigured = flagRepository.findByKey("all-unconfigured").orElseThrow();
+		unconfigured.getEnvironments().remove(EnvironmentKey.PRODUCTION);
+		flagRepository.save(unconfigured);
+		createFlag("all-archived");
+		restTemplate.postForEntity("/api/v1/flags/all-archived/archive", new ActingRequest("tester"), Map.class);
+		enable("all-enabled", false);
+		flagCacheService.load();
+
+		ResponseEntity<Map> response = restTemplate.postForEntity("/api/v1/eval/PRODUCTION", new EvaluationRequest("u1", Map.of()),
+				Map.class);
+		List<Map<String, Object>> results = (List<Map<String, Object>>) response.getBody().get("data");
+
+		assertThat(results).extracting(result -> result.get("flagKey")).containsExactlyInAnyOrder("all-enabled", "all-disabled",
+				"all-failing", "all-unconfigured");
+		assertThat(reasonOf(results, "all-failing")).isEqualTo("PREREQUISITE_FAILED");
+		assertThat(reasonOf(results, "all-enabled")).isEqualTo("FLAG_DISABLED");
+		assertThat(reasonOf(results, "all-unconfigured")).isEqualTo("FLAG_DISABLED");
+	}
+
+	private String reasonOf(List<Map<String, Object>> results, String key) {
+		return results.stream().filter(result -> key.equals(result.get("flagKey"))).map(result -> (String) result.get("reason"))
+				.findFirst().orElseThrow();
+	}
+
+	private Map<String, Object> bootstrapOf(String environment, String key) {
+		ResponseEntity<Map> response = restTemplate.getForEntity("/api/v1/eval/" + environment + "/bootstrap", Map.class);
+		List<Map<String, Object>> flags = (List<Map<String, Object>>) response.getBody().get("data");
+
+		return flags.stream().filter(flag -> key.equals(flag.get("key"))).findFirst().orElseThrow();
+	}
+
+	private ProgressiveRollout rollout(String id, RolloutStatus status) {
+		ProgressiveRollout rollout = new ProgressiveRollout();
+		rollout.setId(id);
+		rollout.setStrategyId("strategy-1");
+		rollout.setFromVariationKey("off");
+		rollout.setToVariationKey("on");
+		rollout.setStages(List.of(new RolloutStage(50, 0), new RolloutStage(100, 60)));
+		rollout.setStatus(status);
+		rollout.setStartAt(Instant.parse("2026-03-01T12:00:00Z"));
+		rollout.setCreatedAt(Instant.parse("2026-03-01T11:00:00Z"));
+		rollout.setStartedBy("alice");
+		rollout.setEndedBy("bob");
+		rollout.setEndedAt(Instant.parse("2026-03-01T13:00:00Z"));
+		rollout.setResolvedVariationKey("on");
+		rollout.setFinalPercentage(100);
+
+		return rollout;
+	}
+
+	private Map<String, Object> evaluateOne(String key, String userId) {
+		ResponseEntity<Map> response = restTemplate.postForEntity("/api/v1/eval/PRODUCTION/" + key,
+				new EvaluationRequest(userId, Map.of()), Map.class);
+
+		return (Map<String, Object>) response.getBody().get("data");
+	}
+
+	private void enable(String key, boolean enabled) {
+		restTemplate.patchForObject("/api/v1/flags/" + key + "/environments/PRODUCTION",
+				new EnvironmentConfigRequest(enabled, "off", List.of(), "tester"), Map.class);
 	}
 
 	private StrategyRequest attributeStrategy(String attribute, String value, String servedVariationKey) {
 		return new StrategyRequest(null, StrategyType.ATTRIBUTE, List.of(), attribute, value, 0, servedVariationKey);
 	}
 
-	private void createFlag(String key) {
+	private void createFlag(String key, String... dependsOn) {
 		FlagCreateRequest request = new FlagCreateRequest(key, key, "desc", FlagType.BOOLEAN, "owner",
-				List.of(new VariationRequest("off", "Off", "false"), new VariationRequest("on", "On", "true")), List.of(),
+				List.of(new VariationRequest("off", "Off", "false"), new VariationRequest("on", "On", "true")), List.of(dependsOn),
 				"tester");
 
 		restTemplate.postForEntity("/api/v1/flags", request, Map.class);

@@ -47,10 +47,11 @@ public class FlagEvalController {
 
 	/**
 	 * The one route that stands in for a real SDK's isEnabled/getVariant call, so it's the only one
-	 * that emits an impression - written synchronously (see MetricsService.recordImpression) after
-	 * the result is already computed, so the impression is durable by the time the caller has its
-	 * answer and a conversion sent right after it is attributed correctly. The pure evaluation itself
-	 * still does no I/O, and a failed write is swallowed rather than failing the evaluation.
+	 * that emits an impression - queued after the result is already computed (see
+	 * MetricsService.recordImpression), so the caller never waits on MongoDB and a full queue or failed
+	 * write can never fail the evaluation. Metrics and conversions read the still-queued impressions,
+	 * so a conversion sent right after an evaluation is attributed correctly. The pure evaluation
+	 * itself still does no I/O.
 	 * Bulk-evaluate and bootstrap don't emit; neither is "one SDK evaluating one flag for one user."
 	 */
 	@PostMapping("/{environment}/{key}")
@@ -61,10 +62,10 @@ public class FlagEvalController {
 				.orElseThrow(() -> new ApiException(404, "FLAG_NOT_FOUND", "No active flag exists with key '" + key + "'."));
 
 		UserContext userContext = userContextFrom(request);
-		EvaluationResult result = flagEvaluationService.evaluate(flag, environment, userContext);
-		int bucket = flagEvaluationService.bucketFor(key, userContext);
-		metricsService.recordImpression(key, environment, result.variationKey(), userContext.userId(), bucket, result.reason(),
-				result.includedInExperiment());
+		FlagEvaluationService.BucketedEvaluation evaluation = flagEvaluationService.evaluateWithBucket(flag, environment, userContext);
+		EvaluationResult result = evaluation.result();
+		metricsService.recordImpression(key, environment, result.variationKey(), userContext.userId(), evaluation.bucket(),
+				result.reason(), result.includedInExperiment());
 
 		return ResponseEntity.ok(Map.of("data", result));
 	}
@@ -95,6 +96,8 @@ public class FlagEvalController {
 		if (request == null) {
 			return UserContext.anonymous(null);
 		}
+
+		request.validate();
 
 		Map<String, ContextEntry> contexts = new LinkedHashMap<>();
 		request.contexts().forEach((kind, context) -> contexts.put(kind, new ContextEntry(context.key(), context.attributes())));

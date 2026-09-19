@@ -99,7 +99,7 @@ export default function TargetingTab({ flag, environment, envConfig, targeting, 
                     offVariationName={offVariation?.name || "None"}
                 />
 
-                <ErrorBanner error={error} />
+                <ErrorBanner error={error} onReload={onChanged} />
             </section>
 
             <IndividualTargetsPanel flag={flag} environment={environment} targeting={targeting} readOnly={readOnly} onChanged={onChanged} />

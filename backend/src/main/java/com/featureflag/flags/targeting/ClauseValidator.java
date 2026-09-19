@@ -9,7 +9,6 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import com.featureflag.flags.UserContext;
 import com.featureflag.flags.targeting.dto.ClauseRequest;
 import com.featureflag.shared.FieldErrors;
 
@@ -20,8 +19,6 @@ import com.featureflag.shared.FieldErrors;
  * the matcher can act on.
  */
 final class ClauseValidator {
-
-	private static final Pattern CONTEXT_KIND_PATTERN = Pattern.compile("^[a-z][a-z0-9_-]{0,49}$");
 
 	private ClauseValidator() {
 	}
@@ -57,13 +54,8 @@ final class ClauseValidator {
 
 	private static Clause validateOne(ClauseRequest request, String field,
 			Function<String, Optional<Segment>> segmentLookup, FieldErrors errors) {
-		String contextKind = request.contextKind() == null || request.contextKind().isBlank() ? UserContext.USER_KIND
-				: request.contextKind();
-
-		if (!CONTEXT_KIND_PATTERN.matcher(contextKind).matches()) {
-			errors.add(field + ".contextKind",
-					"Context kind must be lowercase letters, numbers, underscores and hyphens, starting with a letter.");
-		}
+		String contextKind = TargetingValidation.normalizeKind(request.contextKind());
+		TargetingValidation.validateKind(contextKind, field + ".contextKind", errors);
 
 		ClauseOperator operator = request.operator();
 
@@ -174,6 +166,11 @@ final class ClauseValidator {
 			Pattern.compile(value);
 		} catch (PatternSyntaxException exception) {
 			errors.add(field + ".values", "'" + value + "' is not a valid regular expression.");
+
+			return;
 		}
+
+		RegexSafety.catastrophicReason(value).ifPresent(reason -> errors.add(field + ".values",
+				"'" + value + "' can take exponential time to match: it " + reason + ". Simplify the expression."));
 	}
 }

@@ -1,10 +1,9 @@
 package com.featureflag.flags.targeting;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
 import java.util.regex.Pattern;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.featureflag.flags.FlagStreamService;
@@ -12,6 +11,8 @@ import com.featureflag.flags.targeting.dto.MobileApplicationRequest;
 import com.featureflag.flags.targeting.dto.MobileApplicationUpdateRequest;
 import com.featureflag.shared.ApiException;
 import com.featureflag.shared.FieldErrors;
+import com.featureflag.shared.PageParams;
+import com.featureflag.shared.Validation;
 
 /**
  * The registry behind "is this app version supported": which mobile applications exist and the
@@ -23,6 +24,8 @@ public class MobileApplicationService {
 
 	/** Reverse-DNS style ids ("com.acme.app") are the norm, so dots are allowed after the first character. */
 	private static final Pattern KEY_PATTERN = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$");
+
+	private static final Sort LIST_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("key"));
 
 	private static final String CHANGE_CREATED = "CREATE";
 
@@ -43,10 +46,9 @@ public class MobileApplicationService {
 		this.flagStreamService = flagStreamService;
 	}
 
-	public List<MobileApplication> list() {
-		return applicationRepository.findAll().stream()
-				.sorted(Comparator.comparing((MobileApplication application) -> application.getName().toLowerCase(Locale.ROOT)))
-				.toList();
+	/** One page, sorted by name case-insensitively with the key as tie-break. */
+	public Page<MobileApplication> list(PageParams params) {
+		return applicationRepository.findPage(params.toPageable(LIST_ORDER));
 	}
 
 	public MobileApplication getOrThrow(String key) {
@@ -63,8 +65,8 @@ public class MobileApplicationService {
 			errors.add("key", "Key must be letters, numbers, dots, underscores and hyphens, starting with a letter or number.");
 		}
 
-		requireText(request.name(), "name", errors);
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.name(), "name", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 		validateMinimumVersion(request.minSupportedVersion(), errors);
 
 		if (request.key() != null && errors.isEmpty() && applicationRepository.existsByKey(request.key())) {
@@ -86,8 +88,8 @@ public class MobileApplicationService {
 	public MobileApplication update(String key, MobileApplicationUpdateRequest request) {
 		MobileApplication application = getOrThrow(key);
 		FieldErrors errors = new FieldErrors();
-		requireText(request.name(), "name", errors);
-		requireText(request.changedBy(), "changedBy", errors);
+		Validation.requireText(request.name(), "name", errors);
+		Validation.requireText(request.changedBy(), "changedBy", errors);
 		validateMinimumVersion(request.minSupportedVersion(), errors);
 		errors.throwIfAny();
 
@@ -102,7 +104,7 @@ public class MobileApplicationService {
 	public void delete(String key, String changedBy) {
 		MobileApplication application = getOrThrow(key);
 		FieldErrors errors = new FieldErrors();
-		requireText(changedBy, "changedBy", errors);
+		Validation.requireText(changedBy, "changedBy", errors);
 		errors.throwIfAny();
 
 		applicationRepository.delete(application);
@@ -126,9 +128,4 @@ public class MobileApplicationService {
 		}
 	}
 
-	private void requireText(String value, String field, FieldErrors errors) {
-		if (value == null || value.isBlank()) {
-			errors.add(field, "This field is required.");
-		}
-	}
 }

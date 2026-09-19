@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.featureflag.flags.EnvironmentKey;
-import com.featureflag.flags.experiment.ExperimentService;
 import com.featureflag.flags.metrics.dto.ConversionEventResponse;
 import com.featureflag.flags.metrics.dto.ConversionRequest;
 import com.featureflag.flags.metrics.dto.ExperimentMetricsResponse;
@@ -28,23 +27,16 @@ public class MetricsController {
 
 	private final MetricsService metricsService;
 
-	private final ExperimentService experimentService;
+	private final ConversionService conversionService;
 
-	public MetricsController(MetricsService metricsService, ExperimentService experimentService) {
+	public MetricsController(MetricsService metricsService, ConversionService conversionService) {
 		this.metricsService = metricsService;
-		this.experimentService = experimentService;
+		this.conversionService = conversionService;
 	}
 
-	/**
-	 * Recording and reallocation are orchestrated here, one call each, rather than inside
-	 * MetricsService calling ExperimentService directly - that would create a circular dependency
-	 * between the two services, since ExperimentService also depends on MetricsService to read
-	 * current metrics when computing a new allocation.
-	 */
 	@PostMapping("/conversions")
 	public ResponseEntity<Map<String, Object>> recordConversion(@RequestBody ConversionRequest request) {
-		ConversionEvent saved = metricsService.recordConversion(request);
-		experimentService.reallocateIfBanditEnabled(request.flagKey(), request.environment());
+		ConversionEvent saved = conversionService.record(request);
 
 		return ResponseEntity.status(201).body(Map.of("data", ConversionEventResponse.from(saved)));
 	}

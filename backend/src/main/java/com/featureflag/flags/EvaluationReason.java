@@ -2,6 +2,7 @@ package com.featureflag.flags;
 
 public enum EvaluationReason {
 	FLAG_DISABLED,
+	PREREQUISITE_FAILED,
 	INDIVIDUAL_TARGET,
 	RULE_MATCH,
 	STRATEGY_MATCH,

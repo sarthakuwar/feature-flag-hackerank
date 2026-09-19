@@ -5,6 +5,8 @@ import java.time.Instant;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
@@ -14,7 +16,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
  * clauses. Global rather than per-environment: an app's support policy doesn't differ by environment.
  */
 @Document("mobile_applications")
-public class MobileApplication {
+public class MobileApplication implements Persistable<String> {
 
 	@Id
 	private String id;
@@ -27,6 +29,14 @@ public class MobileApplication {
 
 	private String updatedBy;
 
+	/**
+	 * Optimistic-lock counter: a save fails with {@code OptimisticLockingFailureException} when the
+	 * stored document changed since it was read. Null on a document written before locking existed;
+	 * {@link #isNew()} keys off the id, not this field, so such a document still updates in place.
+	 */
+	@Version
+	private Long version;
+
 	@CreatedDate
 	private Instant createdAt;
 
@@ -36,8 +46,18 @@ public class MobileApplication {
 	public MobileApplication() {
 	}
 
+	@Override
 	public String getId() {
 		return id;
+	}
+
+	@Override
+	public boolean isNew() {
+		return id == null;
+	}
+
+	public Long getVersion() {
+		return version;
 	}
 
 	public void setId(String id) {

@@ -456,7 +456,7 @@ class TargetingEvaluationTest {
 	}
 
 	@Test
-	void everythingElseStillCountsTowardTheExperimentExactlyAsBefore() {
+	void onlyRandomlyAssignedTrafficCountsTowardTheExperiment() {
 		EnvironmentConfig config = config(true);
 		Strategy split = new Strategy();
 		split.setId("split");
@@ -470,8 +470,8 @@ class TargetingEvaluationTest {
 		assertThat(assigned.reason()).isEqualTo(EvaluationReason.EXPERIMENT_ASSIGNED);
 		assertThat(assigned.includedInExperiment()).isTrue();
 
-		assertThat(evaluate(flag(config(false)), UserContext.anonymous("u1")).includedInExperiment()).as("disabled").isTrue();
-		assertThat(evaluate(flag(config(true)), UserContext.anonymous("u1")).includedInExperiment()).as("fallthrough").isTrue();
+		assertThat(evaluate(flag(config(false)), UserContext.anonymous("u1")).includedInExperiment()).as("disabled").isFalse();
+		assertThat(evaluate(flag(config(true)), UserContext.anonymous("u1")).includedInExperiment()).as("fallthrough").isFalse();
 	}
 
 	// ---- helpers

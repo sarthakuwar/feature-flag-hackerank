@@ -5,20 +5,13 @@ import Dialog from "../../shared/Dialog.jsx";
 import ErrorBanner from "../../shared/ErrorBanner.jsx";
 import useAction from "../../shared/useAction.js";
 import { formatDateTime, formatDuration } from "../../shared/format.js";
+import { linearStages } from "./rollouts.js";
 
 const UNITS = [
     { value: 1, label: "minutes" },
     { value: 60, label: "hours" },
     { value: 1440, label: "days" },
 ];
-
-export function linearStages(steps, durationMinutes) {
-    if (!Number.isInteger(steps) || !Number.isInteger(durationMinutes) || steps < 2 || durationMinutes < 1) return [];
-    return Array.from({ length: steps }, (_, index) => ({
-        percentage: Math.round((100 * (index + 1)) / steps),
-        offsetMinutes: Math.floor((durationMinutes * index) / (steps - 1)),
-    }));
-}
 
 function toLocalInputValue(date) {
     const offsetMs = date.getTimezoneOffset() * 60000;

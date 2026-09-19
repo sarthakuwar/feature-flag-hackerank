@@ -32,10 +32,15 @@ public class FieldErrors {
 			return;
 		}
 
+		throw new ValidationException(details());
+	}
+
+	/** The {@code formErrors} and {@code fieldErrors} object a 400 {@code VALIDATION_ERROR} carries as its details. */
+	public Map<String, Object> details() {
 		Map<String, Object> details = new LinkedHashMap<>();
 		details.put("formErrors", formErrors);
 		details.put("fieldErrors", fieldErrors);
 
-		throw new ValidationException(details);
+		return details;
 	}
 }

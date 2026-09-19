@@ -3,6 +3,7 @@ package com.featureflag.flags.targeting;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,12 +12,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.featureflag.flags.dto.ActingRequest;
 import com.featureflag.flags.targeting.dto.MobileApplicationRequest;
 import com.featureflag.flags.targeting.dto.MobileApplicationResponse;
 import com.featureflag.flags.targeting.dto.MobileApplicationUpdateRequest;
+import com.featureflag.shared.PageMeta;
+import com.featureflag.shared.PageParams;
 
 /** Admin surface for the mobile application registry that backs "app version supported / unsupported" targeting. */
 @RestController
@@ -30,11 +34,12 @@ public class MobileApplicationController {
 	}
 
 	@GetMapping
-	public ResponseEntity<Map<String, Object>> list() {
-		List<MobileApplicationResponse> applications = applicationService.list().stream()
-				.map(MobileApplicationResponse::from).toList();
+	public ResponseEntity<Map<String, Object>> list(@RequestParam(required = false) String page,
+			@RequestParam(required = false) String limit) {
+		Page<MobileApplication> applications = applicationService.list(PageParams.parse(page, limit));
+		List<MobileApplicationResponse> data = applications.map(MobileApplicationResponse::from).getContent();
 
-		return ResponseEntity.ok(Map.of("data", applications));
+		return ResponseEntity.ok(Map.of("data", data, "meta", PageMeta.from(applications)));
 	}
 
 	@PostMapping

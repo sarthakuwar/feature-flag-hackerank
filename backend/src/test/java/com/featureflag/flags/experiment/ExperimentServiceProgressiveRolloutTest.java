@@ -25,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
+import com.featureflag.flags.FlagAccess;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagRepository;
 import com.featureflag.flags.FlagStreamService;
@@ -60,7 +61,7 @@ class ExperimentServiceProgressiveRolloutTest {
 	@BeforeEach
 	void setUp() {
 		experimentService = new ExperimentService(flagRepository, flagCacheService, flagStreamService, auditService,
-				metricsService, new EpsilonGreedyAllocator(), new ThompsonSamplingAllocator());
+				metricsService, new EpsilonGreedyAllocator(), new ThompsonSamplingAllocator(), new FlagAccess(flagRepository));
 		lenient().when(flagRepository.save(any(Flag.class))).thenAnswer(invocation -> invocation.getArgument(0));
 	}
 

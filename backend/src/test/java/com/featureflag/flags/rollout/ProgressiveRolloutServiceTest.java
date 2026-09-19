@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,9 +28,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
+import com.featureflag.flags.FlagAccess;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagLifecycle;
 import com.featureflag.flags.FlagRepository;
@@ -69,7 +72,8 @@ class ProgressiveRolloutServiceTest {
 	@BeforeEach
 	void setUp() {
 		clock = new MutableClock(T0);
-		service = new ProgressiveRolloutService(flagRepository, flagCacheService, flagStreamService, auditService, clock);
+		service = new ProgressiveRolloutService(flagRepository, flagCacheService, flagStreamService, auditService, clock,
+				new FlagAccess(flagRepository));
 		lenient().when(flagRepository.save(any(Flag.class))).thenAnswer(invocation -> invocation.getArgument(0));
 	}
 
@@ -579,6 +583,79 @@ class ProgressiveRolloutServiceTest {
 
 		assertThat(service.completeDueRollouts()).isZero();
 		verify(flagRepository, never()).findByKey(any());
+	}
+
+	// ---- completion under failure and contention ----
+
+	@Test
+	void aMalformedRolloutWithNoStagesIsSkippedAndDoesNotStopTheTickForOtherFlags() {
+		Flag malformed = flagWithRule("malformed");
+		production(malformed).getProgressiveRollouts().add(rollout("bad", RULE_ID, "off", "on", T0, List.of()));
+		Flag healthy = flagWithRule("healthy");
+		activeRolloutOn(healthy);
+		when(flagCacheService.all()).thenReturn(List.of(malformed, healthy));
+		when(flagRepository.findByKey("healthy")).thenReturn(Optional.of(healthy));
+		clock.set(T0.plus(Duration.ofDays(1)));
+
+		assertThat(service.completeDueRollouts()).isEqualTo(1);
+		assertThat(rule(healthy, RULE_ID).getServedVariationKey()).isEqualTo("on");
+		verify(flagRepository, never()).findByKey("malformed");
+		verify(flagRepository, never()).save(malformed);
+	}
+
+	@Test
+	void aRolloutTheOtherWriterAlreadyCompletedIsNotCompletedAgain() {
+		Flag stale = flagWithRule("f");
+		activeRolloutOn(stale);
+		when(flagCacheService.all()).thenReturn(List.of(stale));
+		Flag reloaded = flagWithRule("f");
+		production(reloaded).getProgressiveRollouts().add(ended(rollout("r1", RULE_ID, "off", "on", T0), RolloutStatus.COMPLETED, "on", 100));
+		when(flagRepository.findByKey("f")).thenReturn(Optional.of(stale), Optional.of(reloaded));
+		when(flagRepository.save(stale)).thenThrow(new OptimisticLockingFailureException("changed"));
+		clock.set(T0.plus(Duration.ofMinutes(120)));
+
+		assertThat(service.completeDueRollouts()).isZero();
+		verify(flagRepository, never()).save(reloaded);
+		verify(auditService, never()).record(any(), eq(AuditAction.ROLLOUT_COMPLETE), any(), any());
+		verify(flagStreamService, never()).publishFlagChanged(any(), any(), any());
+	}
+
+	@Test
+	void aCompletionThatLosesTheRaceToAnUnrelatedEditReloadsAndAppliesToTheEditedFlag() {
+		Flag stale = flagWithRule("f");
+		activeRolloutOn(stale);
+		when(flagCacheService.all()).thenReturn(List.of(stale));
+		Flag edited = flagWithRule("f");
+		edited.setName("Edited by a person");
+		ProgressiveRollout rollout = activeRolloutOn(edited);
+		when(flagRepository.findByKey("f")).thenReturn(Optional.of(stale), Optional.of(edited));
+		when(flagRepository.save(stale)).thenThrow(new OptimisticLockingFailureException("changed"));
+		clock.set(T0.plus(Duration.ofMinutes(120)));
+
+		assertThat(service.completeDueRollouts()).isEqualTo(1);
+		assertThat(rollout.getStatus()).isEqualTo(RolloutStatus.COMPLETED);
+		verify(flagRepository).save(edited);
+		verify(flagCacheService).put(edited);
+		assertThat(edited.getName()).as("the person's edit is kept").isEqualTo("Edited by a person");
+	}
+
+	@Test
+	void aCompletionThatKeepsLosingTheRaceGivesUpForThisTickWithoutThrowing() {
+		Flag cached = flagWithRule("f");
+		activeRolloutOn(cached);
+		when(flagCacheService.all()).thenReturn(List.of(cached));
+		when(flagRepository.findByKey("f")).thenAnswer(invocation -> {
+			Flag reloaded = flagWithRule("f");
+			activeRolloutOn(reloaded);
+
+			return Optional.of(reloaded);
+		});
+		when(flagRepository.save(any(Flag.class))).thenThrow(new OptimisticLockingFailureException("changed"));
+		clock.set(T0.plus(Duration.ofMinutes(120)));
+
+		assertThat(service.completeDueRollouts()).isZero();
+		verify(flagRepository, times(3)).save(any(Flag.class));
+		verify(auditService, never()).record(any(), any(), any(), any());
 	}
 
 	// ---- list / get ----

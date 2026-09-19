@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import com.featureflag.flags.EnvironmentKey;
 
-public interface ConversionRepository extends MongoRepository<ConversionEvent, String> {
+public interface ConversionRepository extends MongoRepository<ConversionEvent, String>, ConversionMetricsQueries {
 
 	List<ConversionEvent> findByFlagKeyAndEnvironment(String flagKey, EnvironmentKey environment);
 

@@ -6,7 +6,8 @@ function humanizeField(field) {
         .toLowerCase();
 }
 
-export default function ErrorBanner({ error }) {
+// A CONFLICT error offers a Reload button: `onReload` when the page can refetch, otherwise a full page reload.
+export default function ErrorBanner({ error, onReload }) {
     if (!error) return null;
     const message = typeof error === "string" ? error : error.message;
     const formErrors = error.details?.formErrors ?? [];
@@ -15,6 +16,11 @@ export default function ErrorBanner({ error }) {
     return (
         <div className="banner banner-error" role="alert">
             <p className="banner-title">{message}</p>
+            {error.code === "CONFLICT" && (
+                <button type="button" className="button" onClick={onReload || (() => window.location.reload())}>
+                    Reload
+                </button>
+            )}
             {(formErrors.length > 0 || fieldErrors.length > 0) && (
                 <ul className="banner-list">
                     {formErrors.map((text) => (

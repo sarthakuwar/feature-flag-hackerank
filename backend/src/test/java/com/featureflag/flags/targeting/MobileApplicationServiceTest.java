@@ -15,13 +15,20 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.featureflag.flags.FlagStreamService;
 import com.featureflag.flags.targeting.dto.MobileApplicationRequest;
 import com.featureflag.flags.targeting.dto.MobileApplicationUpdateRequest;
 import com.featureflag.shared.ApiException;
+import com.featureflag.shared.PageParams;
 import com.featureflag.shared.ValidationException;
 
 @ExtendWith(MockitoExtension.class)
@@ -118,10 +125,19 @@ class MobileApplicationServiceTest {
 	}
 
 	@Test
-	void listIsSortedByNameCaseInsensitively() {
-		when(applicationRepository.findAll()).thenReturn(List.of(application("b", "beta app", "1.0.0"), application("a", "Alpha app", "1.0.0")));
+	void listAsksTheRepositoryForOnePageSortedByNameThenKey() {
+		Page<MobileApplication> repositoryPage = new PageImpl<>(List.of(application("a", "Alpha app", "1.0.0")),
+				PageRequest.of(2, 10), 25);
+		when(applicationRepository.findPage(any(Pageable.class))).thenReturn(repositoryPage);
 
-		assertThat(applicationService.list()).extracting(MobileApplication::getKey).containsExactly("a", "b");
+		Page<MobileApplication> result = applicationService.list(new PageParams(3, 10));
+
+		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+		verify(applicationRepository).findPage(pageable.capture());
+		assertThat(pageable.getValue().getPageNumber()).as("page 3 is zero-based index 2").isEqualTo(2);
+		assertThat(pageable.getValue().getPageSize()).isEqualTo(10);
+		assertThat(pageable.getValue().getSort()).containsExactly(Sort.Order.asc("name"), Sort.Order.asc("key"));
+		assertThat(result).isSameAs(repositoryPage);
 	}
 
 	private static MobileApplication application(String key, String name, String minSupportedVersion) {

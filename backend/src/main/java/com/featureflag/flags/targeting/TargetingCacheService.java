@@ -27,6 +27,8 @@ public class TargetingCacheService implements TargetingLookup {
 
 	private final ConcurrentHashMap<String, MobileApplication> applicationsByKey = new ConcurrentHashMap<>();
 
+	private volatile boolean loaded;
+
 	public TargetingCacheService(SegmentRepository segmentRepository, MobileApplicationRepository applicationRepository) {
 		this.segmentRepository = segmentRepository;
 		this.applicationRepository = applicationRepository;
@@ -38,6 +40,12 @@ public class TargetingCacheService implements TargetingLookup {
 		applicationsByKey.clear();
 		segmentRepository.findAll().forEach(this::putSegment);
 		applicationRepository.findAll().forEach(this::putApplication);
+		loaded = true;
+	}
+
+	/** True once {@link #load()} has read every segment and application. */
+	public boolean isLoaded() {
+		return loaded;
 	}
 
 	public void putSegment(Segment segment) {

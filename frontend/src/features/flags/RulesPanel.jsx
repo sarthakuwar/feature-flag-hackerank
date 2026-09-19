@@ -92,7 +92,7 @@ export default function RulesPanel({ flag, environment, targeting, segments, act
                 )}
             </div>
 
-            {!deleting && <ErrorBanner error={error} />}
+            {!deleting && <ErrorBanner error={error} onReload={onChanged} />}
 
             {rules.length === 0 ? (
                 <div className="empty-state compact">

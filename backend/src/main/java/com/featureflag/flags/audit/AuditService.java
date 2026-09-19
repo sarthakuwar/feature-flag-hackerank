@@ -1,11 +1,15 @@
 package com.featureflag.flags.audit;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+
+import com.featureflag.shared.PageParams;
 
 @Service
 public class AuditService {
+
+	private static final Sort HISTORY_ORDER = Sort.by(Sort.Order.desc("changedAt"), Sort.Order.desc("id"));
 
 	private final AuditRepository auditRepository;
 
@@ -17,7 +21,8 @@ public class AuditService {
 		auditRepository.save(new AuditEvent(flagKey, action, changedBy, summary));
 	}
 
-	public List<AuditEvent> history(String flagKey) {
-		return auditRepository.findByFlagKeyOrderByChangedAtDesc(flagKey);
+	/** Newest first; events recorded in the same millisecond fall back to the id, which grows with insertion order. */
+	public Page<AuditEvent> history(String flagKey, PageParams params) {
+		return auditRepository.findByFlagKey(flagKey, params.toPageable(HISTORY_ORDER));
 	}
 }

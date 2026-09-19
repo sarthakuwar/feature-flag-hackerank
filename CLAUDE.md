@@ -29,9 +29,9 @@ Read the closest file to the code you touch. Files load top-down; a child adds r
 | Command | Use |
 |---|---|
 | `bun install` | Install the JS workspace and enable git hooks |
-| `bash setup.sh --seed` | Create `.env` files, ensure MongoDB is running, build the backend |
+| `bash setup.sh --seed` | Create `.env` files, ensure a local MongoDB is running, compile the backend (seeding happens when the backend starts) |
 | `bun start` | Run API (port 8000) and UI (port 3000) together |
-| `bun run dev:backend` | API only |
+| `bun run dev:backend` | API only, through `scripts/dev-backend.mjs`, which loads the backend `.env` file (variables already set in the shell win) |
 | `bun run dev:frontend` | UI only |
 | `bun run docs:check` | Drift check for README and every CLAUDE.md |
 
@@ -49,9 +49,9 @@ Docs are versioned with the code and change in the same commit as the code they 
 
 | You changed | Update in the same commit |
 |---|---|
-| A route, request field, or error code | `README.md` API and feature tables; `backend/CLAUDE.md` if a pattern changed |
+| A route, request field, or error code | `README.md` feature table (Entry points column); `backend/CLAUDE.md` if a pattern changed |
 | A backend package or frontend feature folder | `README.md` feature table and the area's package map |
-| A `package.json` script, `setup.sh`, `hackerrank.yml`, an env var | `README.md` commands; this file's command table |
+| A `package.json` script, `setup.sh`, `Dockerfile`, `hackerrank.yml`, an env var | `README.md` commands and configuration; this file's command table |
 | A dependency or runtime version | `README.md` "Built With" |
 | A convention you corrected or repeated to an agent | The nearest CLAUDE.md, as one imperative line |
 

@@ -1,13 +1,16 @@
 import { useEffect } from "react";
+import ErrorBoundary from "./shared/ErrorBoundary.jsx";
 import { AppStateProvider } from "./shared/state/AppStateContext.jsx";
 import { LiveProvider } from "./shared/state/LiveContext.jsx";
 import { RouterProvider, usePath, navigate } from "./shared/router.jsx";
 import AppShell from "./layout/AppShell.jsx";
 import FlagsListPage from "./features/flags/FlagsListPage.jsx";
 import FlagDetailPage from "./features/flags/FlagDetailPage.jsx";
+import RolloutDetailPage from "./features/flags/RolloutDetailPage.jsx";
 import SegmentsPage from "./features/segments/SegmentsPage.jsx";
 import SegmentDetailPage from "./features/segments/SegmentDetailPage.jsx";
 import ApplicationsPage from "./features/applications/ApplicationsPage.jsx";
+import ApplicationDetailPage from "./features/applications/ApplicationDetailPage.jsx";
 import PlaygroundPage from "./features/playground/PlaygroundPage.jsx";
 
 function segmentsOf(path, prefix) {
@@ -29,7 +32,8 @@ function Routes() {
     if (atRoot) return null;
 
     if (path.startsWith("/flags/")) {
-        const [flagKey, tab] = segmentsOf(path, "/flags/");
+        const [flagKey, tab, rolloutId] = segmentsOf(path, "/flags/");
+        if (tab === "rollouts" && rolloutId) return <RolloutDetailPage flagKey={flagKey} rolloutId={rolloutId} />;
         return <FlagDetailPage flagKey={flagKey} tab={tab} />;
     }
 
@@ -41,6 +45,11 @@ function Routes() {
     }
 
     if (path === "/segments") return <SegmentsPage />;
+    if (path.startsWith("/applications/")) {
+        const [applicationKey] = segmentsOf(path, "/applications/");
+        return <ApplicationDetailPage applicationKey={applicationKey} />;
+    }
+
     if (path === "/applications") return <ApplicationsPage />;
     if (path === "/playground") return <PlaygroundPage />;
 
@@ -53,14 +62,16 @@ function Routes() {
 
 export default function App() {
     return (
-        <AppStateProvider>
-            <LiveProvider>
-                <RouterProvider>
-                    <AppShell>
-                        <Routes />
-                    </AppShell>
-                </RouterProvider>
-            </LiveProvider>
-        </AppStateProvider>
+        <ErrorBoundary>
+            <AppStateProvider>
+                <LiveProvider>
+                    <RouterProvider>
+                        <AppShell>
+                            <Routes />
+                        </AppShell>
+                    </RouterProvider>
+                </LiveProvider>
+            </AppStateProvider>
+        </ErrorBoundary>
     );
 }

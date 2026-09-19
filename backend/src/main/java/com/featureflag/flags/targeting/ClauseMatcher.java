@@ -3,8 +3,12 @@ package com.featureflag.flags.targeting;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.featureflag.flags.ContextEntry;
 import com.featureflag.flags.EnvironmentKey;
@@ -16,12 +20,20 @@ import com.featureflag.flags.UserContext;
  * <p>Semantics worth knowing: a clause whose context kind isn't in the evaluation, or whose attribute
  * is absent, is false and is <em>not</em> flipped by {@code negate}; an unparseable number, version or
  * regex is likewise false rather than an error, so one bad value can never break evaluation of the
- * whole flag. Regex matching skips attribute values over {@link #MAX_REGEX_INPUT_LENGTH} characters, a
- * cheap guard against pathological backtracking on oversized input.
+ * whole flag. Regex matching skips attribute values over {@link #MAX_REGEX_INPUT_LENGTH} characters and
+ * gives every match a budget of {@link #MAX_REGEX_STEPS} character reads; a match that spends it is
+ * abandoned as a non-match. Counting reads instead of watching a clock keeps the result deterministic.
  */
 public final class ClauseMatcher {
 
 	static final int MAX_REGEX_INPUT_LENGTH = 4_096;
+
+	static final long MAX_REGEX_STEPS = 200_000;
+
+	private static final Logger LOG = LoggerFactory.getLogger(ClauseMatcher.class);
+
+	/** Counts aborted matches so the warning can be rate limited without reading a clock. */
+	private static final AtomicLong ABORTED_MATCHES = new AtomicLong();
 
 	private static final int MAX_CACHED_PATTERNS = 1_024;
 
@@ -180,7 +192,28 @@ public final class ClauseMatcher {
 			return false;
 		}
 
-		return compiled(pattern).map(compiledPattern -> compiledPattern.matcher(actual).find()).orElse(false);
+		return compiled(pattern).map(compiledPattern -> findWithinBudget(compiledPattern, actual)).orElse(false);
+	}
+
+	private boolean findWithinBudget(Pattern pattern, String actual) {
+		try {
+			return pattern.matcher(new BudgetedCharSequence(actual, MAX_REGEX_STEPS)).find();
+		} catch (BudgetedCharSequence.BudgetExceededException | StackOverflowError exception) {
+			// The regex engine recurses per repetition, so deep input overflows the stack like a spent budget.
+			logAbortedMatch();
+
+			return false;
+		}
+	}
+
+	/** Logs the first aborted match and every thousandth after it, never the pattern or the attribute value. */
+	private void logAbortedMatch() {
+		long occurrence = ABORTED_MATCHES.incrementAndGet();
+
+		if (occurrence == 1 || occurrence % 1_000 == 0) {
+			LOG.warn("A MATCHES clause exceeded its regex step budget of {} and was treated as no match (occurrence {}).",
+					MAX_REGEX_STEPS, occurrence);
+		}
 	}
 
 	private Optional<Pattern> compiled(String pattern) {

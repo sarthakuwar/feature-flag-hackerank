@@ -84,7 +84,7 @@ function MembersPanel({ segment, list, title, hint, readOnly, onChanged }) {
                     {notice}
                 </div>
             )}
-            <ErrorBanner error={error} />
+            <ErrorBanner error={error} onReload={onChanged} />
             <KeyList keys={keys} label={`${title} keys`} emptyText={`No ${title.toLowerCase()} keys.`} disabled={readOnly || busy} onRemove={remove} />
         </section>
     );
@@ -199,7 +199,7 @@ function RulesPanel({ segment, onChanged }) {
                 </ul>
             )}
 
-            {!deleting && <ErrorBanner error={error} />}
+            {!deleting && <ErrorBanner error={error} onReload={onChanged} />}
 
             {editing && (
                 <SegmentRuleDialog
@@ -314,7 +314,9 @@ export default function SegmentDetailPage({ segmentKey }) {
         segmentRes.reload();
         usageRes.reload();
     };
-    useLiveEvents((event) => event.type === "segment-changed" && event.segmentKey === segmentKey && reloadAll());
+    useLiveEvents(
+        (event) => (event.type === "resync" || (event.type === "segment-changed" && event.segmentKey === segmentKey)) && reloadAll(),
+    );
 
     const segment = segmentRes.data;
 
@@ -337,7 +339,7 @@ export default function SegmentDetailPage({ segmentKey }) {
                 <Link to="/segments" className="back-link">
                     ← Segments
                 </Link>
-                {segmentRes.error ? <ErrorBanner error={segmentRes.error} /> : <div className="empty-state">Loading segment…</div>}
+                {segmentRes.error ? <ErrorBanner error={segmentRes.error} onReload={reloadAll} /> : <div className="empty-state">Loading segment…</div>}
             </div>
         );
     }

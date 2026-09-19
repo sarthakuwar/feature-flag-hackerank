@@ -7,12 +7,16 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import com.featureflag.flags.BanditAlgorithm;
 import com.featureflag.flags.EnvironmentConfig;
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
+import com.featureflag.flags.FlagAccess;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagLifecycle;
 import com.featureflag.flags.FlagRepository;
@@ -27,6 +31,7 @@ import com.featureflag.flags.metrics.dto.ExperimentMetricsResponse;
 import com.featureflag.flags.metrics.dto.VariationMetrics;
 import com.featureflag.shared.ApiException;
 import com.featureflag.shared.FieldErrors;
+import com.featureflag.shared.Validation;
 
 /**
  * The allocation control plane for an experiment: manual variation weights ("custom percentage"),
@@ -38,7 +43,11 @@ import com.featureflag.shared.FieldErrors;
 @Service
 public class ExperimentService {
 
+	private static final Logger LOG = LoggerFactory.getLogger(ExperimentService.class);
+
 	private static final String BANDIT_CHANGED_BY = "system:bandit";
+
+	private static final int MAX_CONFLICT_RETRIES = 3;
 
 	private final FlagRepository flagRepository;
 
@@ -54,9 +63,12 @@ public class ExperimentService {
 
 	private final ThompsonSamplingAllocator thompsonSamplingAllocator;
 
+	private final FlagAccess flagAccess;
+
 	public ExperimentService(FlagRepository flagRepository, FlagCacheService flagCacheService,
 			FlagStreamService flagStreamService, AuditService auditService, MetricsService metricsService,
-			EpsilonGreedyAllocator epsilonGreedyAllocator, ThompsonSamplingAllocator thompsonSamplingAllocator) {
+			EpsilonGreedyAllocator epsilonGreedyAllocator, ThompsonSamplingAllocator thompsonSamplingAllocator,
+			FlagAccess flagAccess) {
 		this.flagRepository = flagRepository;
 		this.flagCacheService = flagCacheService;
 		this.flagStreamService = flagStreamService;
@@ -64,14 +76,15 @@ public class ExperimentService {
 		this.metricsService = metricsService;
 		this.epsilonGreedyAllocator = epsilonGreedyAllocator;
 		this.thompsonSamplingAllocator = thompsonSamplingAllocator;
+		this.flagAccess = flagAccess;
 	}
 
 	public Flag setVariationWeights(String key, EnvironmentKey environment, Map<String, Integer> weights, String changedBy) {
-		Flag flag = getEditableFlag(key);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(key);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 
 		FieldErrors errors = new FieldErrors();
-		validateRequiredText(changedBy, "changedBy", errors);
+		Validation.requireText(changedBy, "changedBy", errors);
 		Set<String> variationKeys = flag.getVariations().stream().map(Variation::getKey).collect(Collectors.toSet());
 		validateWeights(weights, variationKeys, errors);
 		errors.throwIfAny();
@@ -92,11 +105,11 @@ public class ExperimentService {
 
 	public Flag configureBandit(String key, EnvironmentKey environment, BanditAlgorithm algorithm, Double epsilon,
 			String changedBy) {
-		Flag flag = getEditableFlag(key);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(key);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 
 		FieldErrors errors = new FieldErrors();
-		validateRequiredText(changedBy, "changedBy", errors);
+		Validation.requireText(changedBy, "changedBy", errors);
 
 		Strategy strategy = findExperimentStrategy(config);
 
@@ -130,8 +143,8 @@ public class ExperimentService {
 	}
 
 	public Flag reallocateNow(String key, EnvironmentKey environment, String changedBy) {
-		Flag flag = getEditableFlag(key);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(key);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 		Strategy strategy = findExperimentStrategy(config);
 
 		if (strategy == null || strategy.getBanditAlgorithm() == BanditAlgorithm.NONE) {
@@ -153,11 +166,28 @@ public class ExperimentService {
 	}
 
 	/**
-	 * Called synchronously right after every conversion write ({@link MetricsService#recordConversion}
-	 * orchestrates this from the controller). A silent no-op whenever no bandit is configured, so
-	 * recording a conversion on a flag without a bandit costs nothing beyond the conversion insert.
+	 * Called synchronously right after every conversion write ({@link com.featureflag.flags.metrics.ConversionService}
+	 * orchestrates this). A silent no-op whenever no bandit is configured, so recording a conversion
+	 * on a flag without a bandit costs nothing beyond the conversion insert. A person may edit the
+	 * same flag at the same moment, so a write conflict reloads the flag and recomputes, up to
+	 * {@value #MAX_CONFLICT_RETRIES} retries, then skips: the next conversion reallocates again.
 	 */
 	public void reallocateIfBanditEnabled(String key, EnvironmentKey environment) {
+		for (int attempt = 0; attempt <= MAX_CONFLICT_RETRIES; attempt++) {
+			try {
+				reallocateOnce(key, environment);
+
+				return;
+			} catch (OptimisticLockingFailureException exception) {
+				// Someone else saved the flag first; the next attempt reloads it and recomputes.
+			}
+		}
+
+		LOG.warn("Skipped bandit reallocation of flag '{}' in {} after {} conflicting writes.", key, environment,
+				MAX_CONFLICT_RETRIES + 1);
+	}
+
+	private void reallocateOnce(String key, EnvironmentKey environment) {
 		Flag flag = flagRepository.findByKey(key).orElse(null);
 
 		if (flag == null || flag.getLifecycle() != FlagLifecycle.ACTIVE) {
@@ -188,11 +218,11 @@ public class ExperimentService {
 	}
 
 	public Flag promoteToFullRollout(String key, EnvironmentKey environment, String winningVariationKey, String changedBy) {
-		Flag flag = getEditableFlag(key);
-		EnvironmentConfig config = requireEnvironment(flag, environment);
+		Flag flag = flagAccess.getEditableFlag(key);
+		EnvironmentConfig config = FlagAccess.requireEnvironment(flag, environment);
 
 		FieldErrors errors = new FieldErrors();
-		validateRequiredText(changedBy, "changedBy", errors);
+		Validation.requireText(changedBy, "changedBy", errors);
 
 		if (winningVariationKey == null || !flag.hasVariation(winningVariationKey)) {
 			errors.add("winningVariationKey", "'" + winningVariationKey + "' does not match a variation on this flag.");
@@ -278,35 +308,6 @@ public class ExperimentService {
 
 		if (sum != 100) {
 			errors.add("weights", "Variation weights must sum to 100 (found " + sum + ").");
-		}
-	}
-
-	private EnvironmentConfig requireEnvironment(Flag flag, EnvironmentKey environment) {
-		EnvironmentConfig config = flag.getEnvironments().get(environment);
-
-		if (config == null) {
-			throw new ApiException(404, "ENVIRONMENT_NOT_FOUND",
-					"Flag '" + flag.getKey() + "' has no configuration for environment '" + environment + "'.");
-		}
-
-		return config;
-	}
-
-	private Flag getEditableFlag(String key) {
-		Flag flag = flagRepository.findByKey(key)
-				.orElseThrow(() -> new ApiException(404, "FLAG_NOT_FOUND", "No flag exists with key '" + key + "'."));
-
-		if (flag.getLifecycle() == FlagLifecycle.ARCHIVED) {
-			throw new ApiException(409, "FLAG_ARCHIVED",
-					"Flag '" + key + "' is archived and cannot be modified. Restore it first.");
-		}
-
-		return flag;
-	}
-
-	private void validateRequiredText(String value, String field, FieldErrors errors) {
-		if (value == null || value.isBlank()) {
-			errors.add(field, "This field is required.");
 		}
 	}
 

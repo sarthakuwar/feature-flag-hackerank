@@ -3,18 +3,9 @@ package com.featureflag.flags.targeting;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Flow;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.AfterEach;
@@ -36,7 +27,9 @@ import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagRepository;
+import com.featureflag.flags.FlagStreamService;
 import com.featureflag.flags.FlagType;
+import com.featureflag.flags.SseTestClient;
 import com.featureflag.flags.StrategyType;
 import com.featureflag.flags.audit.AuditRepository;
 import com.featureflag.flags.dto.ActingRequest;
@@ -94,6 +87,7 @@ class TargetingControllerIT {
 
 	@Autowired
 	private FlagCacheService flagCacheService;
+@Autowired	private FlagStreamService flagStreamService;
 
 	@Autowired
 	private TargetingCacheService targetingCacheService;
@@ -521,38 +515,36 @@ class TargetingControllerIT {
 	// ---- streaming
 
 	@Test
-	void sdkStreamsHearAboutSegmentApplicationAndRuleChangesForTheirEnvironment() throws Exception {
+	void sdkStreamsHearAboutSegmentApplicationAndRuleChangesForTheirEnvironment() {
 		createFlag(FLAG);
-		List<String> lines = new CopyOnWriteArrayList<>();
-		CompletableFuture<HttpResponse<Void>> stream = subscribe("PRODUCTION", lines);
-		CompletableFuture<HttpResponse<Void>> otherEnvironment = subscribe("STAGING", new CopyOnWriteArrayList<>());
-		Thread.sleep(400);
 
-		createSegment("beta-testers", "Beta testers", List.of("u1"));
-		post("/api/v1/mobile-applications", new MobileApplicationRequest("com.acme.app", "Acme app", "2.4.0", "tester"));
-		post(RULES, ruleRequest("Pro", "on", attributeClause("plan", ClauseOperator.IN, "pro")));
+		try (SseTestClient stream = SseTestClient.open(port, flagStreamService, EnvironmentKey.PRODUCTION);
+				SseTestClient otherEnvironment = SseTestClient.open(port, flagStreamService, EnvironmentKey.STAGING)) {
+			createSegment("beta-testers", "Beta testers", List.of("u1"));
+			post("/api/v1/mobile-applications", new MobileApplicationRequest("com.acme.app", "Acme app", "2.4.0", "tester"));
+			post(RULES, ruleRequest("Pro", "on", attributeClause("plan", ClauseOperator.IN, "pro")));
 
-		awaitLine(lines, "segment-changed");
-		awaitLine(lines, "application-changed");
-		awaitLine(lines, "flag-changed");
-		stream.cancel(true);
-		otherEnvironment.cancel(true);
+			stream.awaitLine("segment-changed");
+			stream.awaitLine("application-changed");
+			stream.awaitLine("flag-changed");
 
-		assertThat(lines).anySatisfy(line -> assertThat(line).contains("\"segmentKey\":\"beta-testers\"").contains("\"action\":\"CREATE\""));
-		assertThat(lines).anySatisfy(line -> assertThat(line).contains("\"applicationKey\":\"com.acme.app\""));
+			assertThat(stream.lines()).anySatisfy(line -> assertThat(line).contains("\"segmentKey\":\"beta-testers\"").contains("\"action\":\"CREATE\""));
+			assertThat(stream.lines()).anySatisfy(line -> assertThat(line).contains("\"applicationKey\":\"com.acme.app\""));
+			otherEnvironment.awaitLine("application-changed");
+			assertThat(otherEnvironment.hasLine("beta-testers")).as("segments are per environment").isFalse();
+		}
 	}
 
 	@Test
-	void aStreamForAnotherEnvironmentDoesNotHearProductionSegmentChanges() throws Exception {
-		List<String> stagingLines = new CopyOnWriteArrayList<>();
-		CompletableFuture<HttpResponse<Void>> staging = subscribe("STAGING", stagingLines);
-		Thread.sleep(400);
+	void aStreamForAnotherEnvironmentDoesNotHearProductionSegmentChanges() {
+		try (SseTestClient staging = SseTestClient.open(port, flagStreamService, EnvironmentKey.STAGING)) {
+			createSegment("beta-testers", "Beta testers", List.of("u1"));
+			post("/api/v1/segments/STAGING", new SegmentCreateRequest("staging-only", "Staging only", null, null, null, null, null, "tester"));
 
-		createSegment("beta-testers", "Beta testers", List.of("u1"));
-		Thread.sleep(800);
-		staging.cancel(true);
+			staging.awaitLine("staging-only");
 
-		assertThat(stagingLines).noneMatch(line -> line.contains("segment-changed"));
+			assertThat(staging.lines()).noneMatch(line -> line.contains("beta-testers"));
+		}
 	}
 
 	// ---- error handling
@@ -700,44 +692,5 @@ class TargetingControllerIT {
 
 	private static String errorCode(ResponseEntity<Map> response) {
 		return (String) ((Map<String, Object>) response.getBody().get("error")).get("code");
-	}
-
-	private CompletableFuture<HttpResponse<Void>> subscribe(String environment, List<String> lines) {
-		HttpRequest request = HttpRequest.newBuilder().uri(URI.create("http://localhost:" + port + "/api/v1/stream/" + environment))
-				.timeout(Duration.ofSeconds(15)).GET().build();
-
-		return HttpClient.newHttpClient().sendAsync(request, responseInfo -> HttpResponse.BodySubscribers.fromLineSubscriber(new Flow.Subscriber<String>() {
-			@Override
-			public void onSubscribe(Flow.Subscription subscription) {
-				subscription.request(Long.MAX_VALUE);
-			}
-
-			@Override
-			public void onNext(String item) {
-				lines.add(item);
-			}
-
-			@Override
-			public void onError(Throwable throwable) {
-			}
-
-			@Override
-			public void onComplete() {
-			}
-		}));
-	}
-
-	private void awaitLine(List<String> lines, String needle) throws InterruptedException {
-		long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
-
-		while (System.currentTimeMillis() < deadline) {
-			if (lines.stream().anyMatch(line -> line.contains(needle))) {
-				return;
-			}
-
-			Thread.sleep(100);
-		}
-
-		assertThat(lines).as("expected a '" + needle + "' event within 5s").anyMatch(line -> line.contains(needle));
 	}
 }

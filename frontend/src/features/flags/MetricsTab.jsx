@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
     getExperimentMetrics,
     setExperimentWeights,
@@ -9,6 +9,10 @@ import {
 } from "../../shared/api/flags.js";
 import ErrorBanner from "../../shared/ErrorBanner.jsx";
 import { formatEnumLabel, pluralize, variationColor } from "../../shared/format.js";
+import { evenWeights } from "../../shared/targeting.js";
+import useAction from "../../shared/useAction.js";
+import useDraft from "../../shared/useDraft.js";
+import useResource from "../../shared/useResource.js";
 
 const BANDIT_OPTIONS = [
     { value: "NONE", label: "None (fixed weights)" },
@@ -20,21 +24,17 @@ function formatPercent(rate) {
     return `${(rate * 100).toFixed(1)}%`;
 }
 
-function evenSplit(variations) {
-    return Object.fromEntries(variations.map((variation) => [variation.key, Math.round(100 / variations.length)]));
-}
-
 export default function MetricsTab({ flag, environment, actingAs, readOnly, strategy, onChanged }) {
-    const [metrics, setMetrics] = useState(null);
-    const [error, setError] = useState(null);
-    const [busy, setBusy] = useState(false);
+    const { busy, error: actionError, run } = useAction();
     const [eventTypeDraft, setEventTypeDraft] = useState("");
     const [eventType, setEventType] = useState("");
-    const [weightsDraft, setWeightsDraft] = useState(() =>
-        strategy ? { ...strategy.variationWeights } : evenSplit(flag.variations),
+    const scope = `${flag.key}:${environment}`;
+    const [weightsDraft, setWeightsDraft, resetWeights] = useDraft(
+        scope,
+        strategy ? strategy.variationWeights : evenWeights(flag.variations),
     );
-    const [banditAlgorithm, setBanditAlgorithm] = useState(strategy?.banditAlgorithm || "NONE");
-    const [epsilon, setEpsilon] = useState(strategy?.epsilon ?? 0.2);
+    const [banditAlgorithm, setBanditAlgorithm, resetAlgorithm] = useDraft(scope, strategy?.banditAlgorithm || "NONE");
+    const [epsilon, setEpsilon, resetEpsilon] = useDraft(scope, strategy?.epsilon ?? 0.2);
     const [promoteKey, setPromoteKey] = useState(flag.variations[0]?.key || "");
     const [conversionForm, setConversionForm] = useState({
         variationKey: flag.variations[0]?.key || "",
@@ -43,71 +43,55 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
         value: "",
     });
 
-    const loadMetrics = useCallback(() => {
-        setError(null);
-        getExperimentMetrics(flag.key, environment, eventType)
-            .then(setMetrics)
-            .catch(setError);
-    }, [flag.key, environment, eventType]);
+    const metricsRes = useResource(() => getExperimentMetrics(flag.key, environment, eventType), [flag.key, environment, eventType]);
+    const metrics = metricsRes.data;
+    const error = actionError || metricsRes.error;
 
-    useEffect(() => {
-        setMetrics(null);
-        loadMetrics();
-    }, [loadMetrics]);
-
-    useEffect(() => {
-        setWeightsDraft(strategy ? { ...strategy.variationWeights } : evenSplit(flag.variations));
-        setBanditAlgorithm(strategy?.banditAlgorithm || "NONE");
-        setEpsilon(strategy?.epsilon ?? 0.2);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [strategy, environment]);
-
-    const withBusy = async (action) => {
-        setBusy(true);
-        setError(null);
-        try {
-            await action();
-            loadMetrics();
+    const perform = async (action) => {
+        const { ok } = await run(action);
+        if (ok) {
+            metricsRes.reload();
             onChanged();
-            return true;
-        } catch (err) {
-            setError(err);
-            return false;
-        } finally {
-            setBusy(false);
         }
+        return ok;
     };
 
     const hasExperiment = Boolean(strategy);
     const weightSum = Object.values(weightsDraft).reduce((sum, value) => sum + Number(value || 0), 0);
     const maxImpressions = metrics ? Math.max(1, ...metrics.variations.map((v) => v.impressions)) : 1;
 
-    const submitWeights = (event) => {
+    const submitWeights = async (event) => {
         event.preventDefault();
         const weights = Object.fromEntries(Object.entries(weightsDraft).map(([key, value]) => [key, Number(value)]));
-        withBusy(() => setExperimentWeights(flag.key, environment, weights, actingAs));
+        if (await perform(() => setExperimentWeights(flag.key, environment, weights, actingAs))) resetWeights();
     };
 
-    const submitBandit = (event) => {
+    const submitBandit = async (event) => {
         event.preventDefault();
-        withBusy(() =>
-            configureBandit(
-                flag.key,
-                environment,
-                banditAlgorithm,
-                banditAlgorithm === "EPSILON_GREEDY" ? Number(epsilon) : null,
-                actingAs,
-            ),
-        );
+        const savedEpsilon = banditAlgorithm === "EPSILON_GREEDY" ? Number(epsilon) : null;
+        if (await perform(() => configureBandit(flag.key, environment, banditAlgorithm, savedEpsilon, actingAs))) {
+            resetAlgorithm();
+            resetEpsilon();
+        }
     };
 
-    const runReallocate = () => withBusy(() => reallocateExperiment(flag.key, environment, actingAs));
+    const resetDrafts = () => {
+        resetWeights();
+        resetAlgorithm();
+        resetEpsilon();
+    };
 
-    const runPromote = () => withBusy(() => promoteExperiment(flag.key, environment, promoteKey, actingAs));
+    const runReallocate = async () => {
+        if (await perform(() => reallocateExperiment(flag.key, environment, actingAs))) resetDrafts();
+    };
+
+    const runPromote = async () => {
+        if (await perform(() => promoteExperiment(flag.key, environment, promoteKey, actingAs))) resetDrafts();
+    };
 
     const submitConversion = (event) => {
         event.preventDefault();
-        withBusy(() =>
+        perform(() =>
             recordConversion({
                 flagKey: flag.key,
                 environment,
@@ -123,7 +107,7 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
         <section className="panel" aria-labelledby="metrics-heading">
             <h2 id="metrics-heading">Experiment metrics</h2>
 
-            <ErrorBanner error={error} />
+            <ErrorBanner error={error} onReload={metricsRes.reload} />
 
             {hasExperiment ? (
                 <p className="meta-line">
@@ -162,7 +146,7 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
                 </p>
             )}
 
-            {metrics === null && !error ? (
+            {metricsRes.loading && !error ? (
                 <p className="hint">Loading metrics…</p>
             ) : (
                 metrics && (
@@ -207,7 +191,7 @@ export default function MetricsTab({ flag, environment, actingAs, readOnly, stra
                                         min="0"
                                         max="100"
                                         value={weightsDraft[variation.key] ?? 0}
-                                        onChange={(event) => setWeightsDraft((prev) => ({ ...prev, [variation.key]: event.target.value }))}
+                                        onChange={(event) => setWeightsDraft({ ...weightsDraft, [variation.key]: event.target.value })}
                                     />
                                 </label>
                             ))}

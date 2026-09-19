@@ -5,6 +5,8 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.stereotype.Component;
 
+import com.featureflag.flags.audit.AuditEvent;
+
 import jakarta.annotation.PostConstruct;
 
 /**
@@ -25,5 +27,12 @@ public class FlagIndexInitializer {
 	@PostConstruct
 	public void ensureIndexes() {
 		mongoTemplate.indexOps(Flag.class).ensureIndex(new Index().on("key", Sort.Direction.ASC).unique());
+		// The flag list pages by createdAt then key, with or without a lifecycle filter.
+		mongoTemplate.indexOps(Flag.class)
+				.ensureIndex(new Index().on("lifecycle", Sort.Direction.ASC).on("createdAt", Sort.Direction.ASC).on("key", Sort.Direction.ASC));
+		mongoTemplate.indexOps(Flag.class).ensureIndex(new Index().on("createdAt", Sort.Direction.ASC).on("key", Sort.Direction.ASC));
+		// The audit history pages newest first, with the id as tie-break.
+		mongoTemplate.indexOps(AuditEvent.class).ensureIndex(
+				new Index().on("flagKey", Sort.Direction.ASC).on("changedAt", Sort.Direction.DESC).on("id", Sort.Direction.DESC));
 	}
 }

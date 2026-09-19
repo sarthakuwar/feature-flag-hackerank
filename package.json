@@ -12,7 +12,7 @@
 		"prestart": "bash setup.sh --start",
 		"start": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
 		"dev:frontend": "cd frontend && bun run dev",
-		"dev:backend": "cd backend && ./gradlew bootRun --args=\"--server.max-http-request-header-size=2MB\" --quiet --console=plain"
+		"dev:backend": "bun scripts/dev-backend.mjs"
 	},
 	"devDependencies": {
 		"concurrently": "9.2.1"

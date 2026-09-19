@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import com.featureflag.flags.EnvironmentKey;
 
-public interface ImpressionRepository extends MongoRepository<ImpressionEvent, String> {
+public interface ImpressionRepository extends MongoRepository<ImpressionEvent, String>, ImpressionMetricsQueries {
 
 	List<ImpressionEvent> findByFlagKeyAndEnvironment(String flagKey, EnvironmentKey environment);
 

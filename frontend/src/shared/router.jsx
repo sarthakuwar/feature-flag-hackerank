@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const RouterContext = createContext(null);
 
@@ -12,8 +12,32 @@ export function navigate(path) {
     window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
+// After a route change, keyboard and screen reader users start at the new page: focus moves to its main heading (or the main
+// region while the page is still loading) and a live region announces it. Focus stays put when the change came from a tab
+// list or the app redirected from "/".
+function useRouteFocus(path, setAnnouncement) {
+    const previousPath = useRef(path);
+
+    useEffect(() => {
+        if (previousPath.current === path) return;
+        const previous = previousPath.current;
+        previousPath.current = path;
+        if (previous === "/" || previous === "") return;
+        const main = document.getElementById("main-content");
+        const heading = main?.querySelector("h1");
+        setAnnouncement(heading?.textContent || "Loading page");
+        if (document.activeElement?.getAttribute("role") === "tab") return;
+        const target = heading || main;
+        if (!target) return;
+        if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+        target.focus();
+    }, [path, setAnnouncement]);
+}
+
 export function RouterProvider({ children }) {
     const [path, setPath] = useState(currentPath());
+    const [announcement, setAnnouncement] = useState("");
+    useRouteFocus(path, setAnnouncement);
 
     useEffect(() => {
         const onPopState = () => setPath(currentPath());
@@ -21,7 +45,14 @@ export function RouterProvider({ children }) {
         return () => window.removeEventListener("popstate", onPopState);
     }, []);
 
-    return <RouterContext.Provider value={path}>{children}</RouterContext.Provider>;
+    return (
+        <RouterContext.Provider value={path}>
+            {children}
+            <p className="sr-only" role="status" aria-live="polite">
+                {announcement}
+            </p>
+        </RouterContext.Provider>
+    );
 }
 
 export function usePath() {

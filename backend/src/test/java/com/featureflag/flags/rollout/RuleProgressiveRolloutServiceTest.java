@@ -31,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.featureflag.flags.EnvironmentKey;
 import com.featureflag.flags.Flag;
+import com.featureflag.flags.FlagAccess;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagRepository;
 import com.featureflag.flags.FlagStreamService;
@@ -68,7 +69,8 @@ class RuleProgressiveRolloutServiceTest {
 	@BeforeEach
 	void setUp() {
 		clock = new MutableClock(T0);
-		service = new ProgressiveRolloutService(flagRepository, flagCacheService, flagStreamService, auditService, clock);
+		service = new ProgressiveRolloutService(flagRepository, flagCacheService, flagStreamService, auditService, clock,
+				new FlagAccess(flagRepository));
 		lenient().when(flagRepository.save(any(Flag.class))).thenAnswer(invocation -> invocation.getArgument(0));
 	}
 

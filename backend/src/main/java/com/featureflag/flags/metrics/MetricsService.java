@@ -4,11 +4,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import com.featureflag.flags.BanditAlgorithm;
@@ -34,40 +29,37 @@ import com.featureflag.shared.FieldErrors;
 @Service
 public class MetricsService {
 
+	private static final int MAX_TEXT_LENGTH = 256;
+
+	private static final double MAX_VALUE_MAGNITUDE = 1e12;
+
 	private final ImpressionRepository impressionRepository;
 
 	private final ConversionRepository conversionRepository;
 
-	private final MongoTemplate mongoTemplate;
+	private final ImpressionWriter impressionWriter;
 
 	private final FlagCacheService flagCacheService;
 
 	public MetricsService(ImpressionRepository impressionRepository, ConversionRepository conversionRepository,
-			MongoTemplate mongoTemplate, FlagCacheService flagCacheService) {
+			ImpressionWriter impressionWriter, FlagCacheService flagCacheService) {
 		this.impressionRepository = impressionRepository;
 		this.conversionRepository = conversionRepository;
-		this.mongoTemplate = mongoTemplate;
+		this.impressionWriter = impressionWriter;
 		this.flagCacheService = flagCacheService;
 	}
 
 	/**
-	 * The "the SDK emits an impression when it calls isEnabled/getVariant" telemetry path. Synchronous
-	 * on purpose: the impression is durable before the evaluation response returns, so a conversion
-	 * the same user sends right afterwards always finds it and inherits the correct experiment
-	 * inclusion (see {@link #isUserInExperiment}); an async write left a window where it would not.
-	 * The price is one MongoDB write on the evaluation request, which is why this is called after the
-	 * result is already computed and never inside {@code evaluate()}, which stays pure. It still can
-	 * never break the caller - failures are swallowed and logged, not thrown, since a lost impression
-	 * is not worth failing a flag evaluation over.
+	 * The "the SDK emits an impression when it calls isEnabled/getVariant" telemetry path. It only
+	 * enqueues (see {@link ImpressionWriter}), so the evaluation request never waits on MongoDB and
+	 * can never fail because of it; a full queue drops the impression. Conversions and metrics reads
+	 * flush the queue first, so a conversion sent right after an evaluation still finds that
+	 * impression and inherits the correct experiment inclusion (see {@link #isUserInExperiment}).
 	 */
 	public void recordImpression(String flagKey, EnvironmentKey environment, String variationKey, String userId, int bucket,
 			EvaluationReason reason, boolean includedInExperiment) {
-		try {
-			impressionRepository.save(new ImpressionEvent(flagKey, environment, variationKey, userId, bucket, reason,
-					includedInExperiment));
-		} catch (RuntimeException exception) {
-			System.err.println("Failed to record impression for flag '" + flagKey + "': " + exception);
-		}
+		impressionWriter.enqueue(new ImpressionEvent(flagKey, environment, variationKey, userId, bucket, reason,
+				includedInExperiment));
 	}
 
 	public ConversionEvent recordConversion(ConversionRequest request) {
@@ -81,12 +73,15 @@ public class MetricsService {
 			errors.add("environment", "Environment is required.");
 		}
 
-		if (request.userId() == null || request.userId().isBlank()) {
-			errors.add("userId", "User id is required.");
+		if (request.variationKey() == null || request.variationKey().isBlank()) {
+			errors.add("variationKey", "Variation key is required.");
 		}
 
-		if (request.eventType() == null || request.eventType().isBlank()) {
-			errors.add("eventType", "Event type is required.");
+		validateBoundedText(request.userId(), "userId", "User id", errors);
+		validateBoundedText(request.eventType(), "eventType", "Event type", errors);
+
+		if (request.value() != null && (!Double.isFinite(request.value()) || Math.abs(request.value()) > MAX_VALUE_MAGNITUDE)) {
+			errors.add("value", "Value must be a finite number between -1e12 and 1e12.");
 		}
 
 		errors.throwIfAny();
@@ -110,6 +105,14 @@ public class MetricsService {
 				request.userId(), request.eventType(), request.value(), isUserInExperiment(request)));
 	}
 
+	private void validateBoundedText(String text, String field, String label, FieldErrors errors) {
+		if (text == null || text.isBlank()) {
+			errors.add(field, label + " is required.");
+		} else if (text.length() > MAX_TEXT_LENGTH) {
+			errors.add(field, label + " must be at most " + MAX_TEXT_LENGTH + " characters.");
+		}
+	}
+
 	/**
 	 * A conversion counts toward the experiment only if the user's most recent impression of this flag
 	 * did. Without this, conversions from hand-picked users would still land in the numerator while
@@ -118,6 +121,8 @@ public class MetricsService {
 	 * included, which is how conversions behaved before targeting existed.
 	 */
 	private boolean isUserInExperiment(ConversionRequest request) {
+		impressionWriter.flush();
+
 		return impressionRepository
 				.findFirstByFlagKeyAndEnvironmentAndUserIdOrderByOccurredAtDesc(request.flagKey(), request.environment(),
 						request.userId())
@@ -133,8 +138,11 @@ public class MetricsService {
 					"Flag '" + flagKey + "' has no configuration for environment '" + environment + "'.");
 		}
 
-		Map<String, Long> impressionCounts = countByVariation("flag_impression_events", flagKey, environment, null);
-		Map<String, Long> conversionCounts = countByVariation("flag_conversion_events", flagKey, environment, eventTypeFilter);
+		impressionWriter.flush();
+
+		Map<String, Long> impressionCounts = toCounts(impressionRepository.countIncludedByVariation(flagKey, environment));
+		Map<String, Long> conversionCounts = toCounts(
+				conversionRepository.countIncludedByVariation(flagKey, environment, eventTypeFilter));
 
 		Strategy experimentStrategy = findExperimentStrategy(flag.getEnvironments().get(environment));
 
@@ -151,7 +159,7 @@ public class MetricsService {
 		return new ExperimentMetricsResponse(flagKey, environment, variationMetrics,
 				experimentStrategy != null ? experimentStrategy.getBanditAlgorithm() : BanditAlgorithm.NONE,
 				experimentStrategy != null ? experimentStrategy.getEpsilon() : null,
-				countExcludedImpressions(flagKey, environment));
+				impressionRepository.countExcluded(flagKey, environment));
 	}
 
 	private Strategy findExperimentStrategy(EnvironmentConfig environmentConfig) {
@@ -161,34 +169,10 @@ public class MetricsService {
 				.orElse(null);
 	}
 
-	private Map<String, Long> countByVariation(String collectionName, String flagKey, EnvironmentKey environment,
-			String eventTypeFilter) {
-		// "not false" rather than "true" so documents written before the field existed still count.
-		Criteria criteria = Criteria.where("flagKey").is(flagKey).and("environment").is(environment).and("includedInExperiment")
-				.ne(false);
-
-		if (eventTypeFilter != null && !eventTypeFilter.isBlank()) {
-			criteria = criteria.and("eventType").is(eventTypeFilter);
-		}
-
-		Aggregation aggregation = Aggregation.newAggregation(Aggregation.match(criteria),
-				Aggregation.group("variationKey").count().as("count"));
-
-		AggregationResults<VariationCount> results = mongoTemplate.aggregate(aggregation, collectionName, VariationCount.class);
-
+	private Map<String, Long> toCounts(List<VariationCount> rows) {
 		Map<String, Long> counts = new LinkedHashMap<>();
-		results.getMappedResults().forEach(result -> counts.put(result.id(), result.count()));
+		rows.forEach(row -> counts.put(row.id(), row.count()));
 
 		return counts;
-	}
-
-	private long countExcludedImpressions(String flagKey, EnvironmentKey environment) {
-		Criteria criteria = Criteria.where("flagKey").is(flagKey).and("environment").is(environment).and("includedInExperiment")
-				.is(false);
-
-		return mongoTemplate.count(new Query(criteria), "flag_impression_events");
-	}
-
-	private record VariationCount(String id, long count) {
 	}
 }

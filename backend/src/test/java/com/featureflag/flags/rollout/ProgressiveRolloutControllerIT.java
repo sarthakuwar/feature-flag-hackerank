@@ -3,19 +3,10 @@ package com.featureflag.flags.rollout;
 import static com.featureflag.flags.rollout.RolloutFixtures.T0;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Flow;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +30,9 @@ import com.featureflag.flags.Flag;
 import com.featureflag.flags.FlagCacheService;
 import com.featureflag.flags.FlagEvaluationService;
 import com.featureflag.flags.FlagRepository;
+import com.featureflag.flags.FlagStreamService;
 import com.featureflag.flags.FlagType;
+import com.featureflag.flags.SseTestClient;
 import com.featureflag.flags.ProgressiveRollout;
 import com.featureflag.flags.StrategyType;
 import com.featureflag.flags.UserContext;
@@ -98,6 +91,9 @@ class ProgressiveRolloutControllerIT {
 
 	@Autowired
 	private FlagCacheService flagCacheService;
+
+	@Autowired
+	private FlagStreamService flagStreamService;
 
 	@Autowired
 	private ImpressionRepository impressionRepository;
@@ -636,25 +632,22 @@ class ProgressiveRolloutControllerIT {
 	// ---- streaming ----
 
 	@Test
-	void startStopAndCompletionAreBroadcastToStreamSubscribers() throws Exception {
+	void startStopAndCompletionAreBroadcastToStreamSubscribers() {
 		String ruleId = flagWithRule("stream-lifecycle");
 		String stoppedFlagRuleId = flagWithRule("stream-lifecycle-2");
-		List<String> received = new CopyOnWriteArrayList<>();
-		CompletableFuture<HttpResponse<Void>> stream = subscribe(received);
-		Thread.sleep(300);
 
-		start("stream-lifecycle", PROD, linear(ruleId, "on", 4, 60));
-		assertThat(waitFor(() -> received.stream().anyMatch(line -> line.contains("ROLLOUT_START")))).isTrue();
+		try (SseTestClient stream = SseTestClient.open(port, flagStreamService, EnvironmentKey.PRODUCTION)) {
+			start("stream-lifecycle", PROD, linear(ruleId, "on", 4, 60));
+			stream.awaitLine("ROLLOUT_START");
 
-		String id = (String) data(start("stream-lifecycle-2", PROD, linear(stoppedFlagRuleId, "on", 4, 60))).get("id");
-		stop("stream-lifecycle-2", PROD, id, "off");
-		assertThat(waitFor(() -> received.stream().anyMatch(line -> line.contains("ROLLOUT_STOP")))).isTrue();
+			String id = (String) data(start("stream-lifecycle-2", PROD, linear(stoppedFlagRuleId, "on", 4, 60))).get("id");
+			stop("stream-lifecycle-2", PROD, id, "off");
+			stream.awaitLine("ROLLOUT_STOP");
 
-		clock.advance(Duration.ofMinutes(60));
-		rolloutService.completeDueRollouts();
-		assertThat(waitFor(() -> received.stream().anyMatch(line -> line.contains("ROLLOUT_COMPLETE")))).isTrue();
-
-		stream.cancel(true);
+			clock.advance(Duration.ofMinutes(60));
+			rolloutService.completeDueRollouts();
+			stream.awaitLine("ROLLOUT_COMPLETE");
+		}
 	}
 
 	// ---- helpers ----
@@ -749,45 +742,5 @@ class ProgressiveRolloutControllerIT {
 
 	private String errorCode(ResponseEntity<Map> response) {
 		return (String) error(response).get("code");
-	}
-
-	private CompletableFuture<HttpResponse<Void>> subscribe(List<String> received) {
-		HttpRequest request = HttpRequest.newBuilder().uri(URI.create("http://localhost:" + port + "/api/v1/stream/PRODUCTION"))
-				.timeout(Duration.ofSeconds(20)).GET().build();
-
-		return HttpClient.newHttpClient().sendAsync(request,
-				responseInfo -> HttpResponse.BodySubscribers.fromLineSubscriber(new Flow.Subscriber<String>() {
-					@Override
-					public void onSubscribe(Flow.Subscription subscription) {
-						subscription.request(Long.MAX_VALUE);
-					}
-
-					@Override
-					public void onNext(String item) {
-						received.add(item);
-					}
-
-					@Override
-					public void onError(Throwable throwable) {
-					}
-
-					@Override
-					public void onComplete() {
-					}
-				}));
-	}
-
-	private boolean waitFor(BooleanSupplier condition) throws InterruptedException {
-		long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
-
-		while (System.currentTimeMillis() < deadline) {
-			if (condition.getAsBoolean()) {
-				return true;
-			}
-
-			Thread.sleep(100);
-		}
-
-		return condition.getAsBoolean();
 	}
 }
