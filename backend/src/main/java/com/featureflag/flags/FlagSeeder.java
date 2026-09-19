@@ -20,6 +20,8 @@ import com.featureflag.flags.metrics.ConversionEvent;
 import com.featureflag.flags.metrics.ConversionRepository;
 import com.featureflag.flags.metrics.ImpressionEvent;
 import com.featureflag.flags.metrics.ImpressionRepository;
+import com.featureflag.flags.rollout.ProgressiveRolloutService;
+import com.featureflag.flags.rollout.dto.StartProgressiveRolloutRequest;
 
 /**
  * backend/build.gradle can't carry a Gradle "seed" task (it's a readonly_paths entry and has no
@@ -47,9 +49,12 @@ public class FlagSeeder implements ApplicationRunner {
 
 	private final ExperimentService experimentService;
 
+	private final ProgressiveRolloutService progressiveRolloutService;
+
 	public FlagSeeder(FlagRepository flagRepository, AuditRepository auditRepository, FlagService flagService,
 			FlagCacheService flagCacheService, ImpressionRepository impressionRepository,
-			ConversionRepository conversionRepository, ExperimentService experimentService) {
+			ConversionRepository conversionRepository, ExperimentService experimentService,
+			ProgressiveRolloutService progressiveRolloutService) {
 		this.flagRepository = flagRepository;
 		this.auditRepository = auditRepository;
 		this.flagService = flagService;
@@ -57,6 +62,7 @@ public class FlagSeeder implements ApplicationRunner {
 		this.impressionRepository = impressionRepository;
 		this.conversionRepository = conversionRepository;
 		this.experimentService = experimentService;
+		this.progressiveRolloutService = progressiveRolloutService;
 	}
 
 	@Override
@@ -153,6 +159,15 @@ public class FlagSeeder implements ApplicationRunner {
 				"seed"));
 
 		enable("dark-mode-default", EnvironmentKey.DEVELOPMENT, "off", List.of(rollout(100, "on")));
+
+		// PRODUCTION: everyone currently gets "off"; a five-step, week-long progressive rollout is
+		// moving them to "on", so the flags list and rule editor have a live rollout to show.
+		Flag production = flagService.updateEnvironment("dark-mode-default", EnvironmentKey.PRODUCTION,
+				new EnvironmentConfigRequest(true, "off", List.of(rollout(100, "off")), "seed"));
+		String ruleId = production.getEnvironments().get(EnvironmentKey.PRODUCTION).getStrategies().get(0).getId();
+
+		progressiveRolloutService.start("dark-mode-default", EnvironmentKey.PRODUCTION,
+				new StartProgressiveRolloutRequest(ruleId, "on", null, null, 5, 7 * 24 * 60, "seed"));
 	}
 
 	/** Demonstrates the second bandit algorithm (Thompson sampling) with its own seeded data set. */

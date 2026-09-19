@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -152,8 +153,14 @@ public class FlagService {
 
 		errors.throwIfAny();
 
-		boolean wasEnabled = flag.getEnvironments().containsKey(environment) && flag.getEnvironments().get(environment).isEnabled();
+		EnvironmentConfig existing = flag.getEnvironments().get(environment);
+		boolean wasEnabled = existing != null && existing.isEnabled();
+		List<ProgressiveRollout> rollouts = existing == null ? new ArrayList<>() : existing.getProgressiveRollouts();
+
+		requireCompatibleWithActiveRollout(existing, strategies);
+
 		EnvironmentConfig config = new EnvironmentConfig(request.enabled(), request.offVariationKey(), strategies);
+		config.setProgressiveRollouts(rollouts);
 		flag.getEnvironments().put(environment, config);
 
 		Flag saved = flagRepository.save(flag);
@@ -167,6 +174,48 @@ public class FlagService {
 		flagStreamService.publishFlagChanged(environment, saved.getKey(), action.name());
 
 		return saved;
+	}
+
+	/**
+	 * While a progressive rollout is running, the environment's rules can be edited freely except in
+	 * the ways that would invalidate it: dropping the targeted rule, changing its type or the
+	 * variation it serves (the rollout's "from"), or introducing an experiment. Stopping the
+	 * rollout first is how a caller decides what the rule serves instead.
+	 */
+	private void requireCompatibleWithActiveRollout(EnvironmentConfig existing, List<Strategy> requested) {
+		if (existing == null) {
+			return;
+		}
+
+		ProgressiveRollout rollout = existing.activeProgressiveRollout().orElse(null);
+
+		if (rollout == null) {
+			return;
+		}
+
+		if (requested.stream().anyMatch(strategy -> strategy.getType() == StrategyType.EXPERIMENT_SPLIT)) {
+			throw new ApiException(409, "ROLLOUT_IN_PROGRESS",
+					"An experiment cannot be added while a progressive rollout is active; stop the rollout first.");
+		}
+
+		Strategy target = requested.stream().filter(strategy -> rollout.getStrategyId().equals(strategy.getId())).findFirst()
+				.orElse(null);
+
+		if (target == null) {
+			throw new ApiException(409, "ROLLOUT_IN_PROGRESS",
+					"Rule '" + rollout.getStrategyId() + "' has an active progressive rollout and cannot be removed; stop the rollout first.");
+		}
+
+		Strategy current = existing.getStrategies().stream().filter(strategy -> rollout.getStrategyId().equals(strategy.getId()))
+				.findFirst().orElse(null);
+
+		boolean changed = current != null && (current.getType() != target.getType()
+				|| !Objects.equals(current.getServedVariationKey(), target.getServedVariationKey()));
+
+		if (changed) {
+			throw new ApiException(409, "ROLLOUT_IN_PROGRESS", "Rule '" + rollout.getStrategyId()
+					+ "' has an active progressive rollout, so its type and served variation cannot change; stop the rollout first.");
+		}
 	}
 
 	/**
@@ -378,7 +427,9 @@ public class FlagService {
 
 		flag.getEnvironments().forEach((environment, config) -> {
 			boolean referenced = variationKey.equals(config.getOffVariationKey())
-					|| config.getStrategies().stream().anyMatch(strategy -> variationKey.equals(strategy.getServedVariationKey()));
+					|| config.getStrategies().stream().anyMatch(strategy -> variationKey.equals(strategy.getServedVariationKey()))
+					|| config.getProgressiveRollouts().stream()
+							.anyMatch(rollout -> rollout.active() && variationKey.equals(rollout.getToVariationKey()));
 
 			if (referenced) {
 				referencing.add(environment.name());

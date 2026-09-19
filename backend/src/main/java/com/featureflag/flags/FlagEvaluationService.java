@@ -3,9 +3,11 @@ package com.featureflag.flags;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -15,11 +17,27 @@ import org.springframework.stereotype.Service;
  * resolves only if the stable-hash bucket falls under its percentage, otherwise evaluation falls
  * through to the next strategy. If nothing in the list resolves it, the environment's
  * offVariationKey is served. No I/O, no side effects, so it stays sub-millisecond.
+ *
+ * <p>A rule with an ACTIVE progressive rollout resolves in two steps: the rule's normal audience
+ * check first, then the user's stable-hash bucket against the rollout's current percentage (a pure
+ * function of the schedule stored on the flag and the injected clock) to choose between the
+ * rollout's from and to variations. Reading the clock is the only environmental input.
  */
 @Service
 public class FlagEvaluationService {
 
 	private static final int BUCKET_COUNT = 100;
+
+	private final Clock clock;
+
+	public FlagEvaluationService() {
+		this(Clock.systemUTC());
+	}
+
+	@Autowired
+	public FlagEvaluationService(Clock clock) {
+		this.clock = clock;
+	}
 
 	public EvaluationResult evaluate(Flag flag, EnvironmentKey environment, UserContext userContext) {
 		EnvironmentConfig config = flag.getEnvironments().get(environment);
@@ -36,6 +54,12 @@ public class FlagEvaluationService {
 				int bucket = bucketFor(flag.getKey(), userContext);
 
 				if (bucket < strategy.getPercentage()) {
+					Optional<ProgressiveRollout> progressive = config.activeRolloutFor(strategy.getId());
+
+					if (progressive.isPresent()) {
+						return progressiveResult(flag, strategy, progressive.get(), bucket);
+					}
+
 					return EvaluationResult.of(flag.getKey(), strategy.getServedVariationKey(),
 							valueOf(flag, strategy.getServedVariationKey()), EvaluationReason.ROLLOUT_ENABLED);
 				}
@@ -46,6 +70,12 @@ public class FlagEvaluationService {
 				return EvaluationResult.of(flag.getKey(), variationKey, valueOf(flag, variationKey),
 						EvaluationReason.EXPERIMENT_ASSIGNED);
 			} else if (strategy.matches(userContext)) {
+				Optional<ProgressiveRollout> progressive = config.activeRolloutFor(strategy.getId());
+
+				if (progressive.isPresent()) {
+					return progressiveResult(flag, strategy, progressive.get(), bucketFor(flag.getKey(), userContext));
+				}
+
 				return EvaluationResult.strategyMatch(flag.getKey(), strategy.getServedVariationKey(),
 						valueOf(flag, strategy.getServedVariationKey()), strategy.getId());
 			}
@@ -53,6 +83,18 @@ public class FlagEvaluationService {
 
 		return EvaluationResult.of(flag.getKey(), config.getOffVariationKey(), valueOf(flag, config.getOffVariationKey()),
 				EvaluationReason.FALLTHROUGH);
+	}
+
+	/**
+	 * Users whose bucket is below the rollout's current percentage get the new variation, everyone
+	 * else in the rule's audience keeps the old one. Because the bucket is stable and the percentage
+	 * only ever grows, a user who has moved to the new variation never moves back.
+	 */
+	private EvaluationResult progressiveResult(Flag flag, Strategy strategy, ProgressiveRollout rollout, int bucket) {
+		String variationKey = bucket < rollout.percentageAt(clock.instant()) ? rollout.getToVariationKey()
+				: rollout.getFromVariationKey();
+
+		return EvaluationResult.progressiveRollout(flag.getKey(), variationKey, valueOf(flag, variationKey), strategy.getId());
 	}
 
 	/**
