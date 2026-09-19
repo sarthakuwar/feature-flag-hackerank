@@ -1,0 +1,461 @@
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_a834399ccae02b::t_a802556eb6ccea 28-35,49-54,56-57,62-64,79,86,93-96,102-103,147,150-152,170,173,180,182,191,219,223,227,231,235,239,243,247
+  s_a834399ccae02b::t_348dc2fae14fc7 9,13-14,27,39-40,67-75
+  s_a834399ccae02b::t_c0e00d9a8a1e69 12,87-89,130-137,141,164,175-178,187,193,208,210
+  s_a834399ccae02b::t_6d2d35e71557a1 9,13-14,27,39-40,67-75
+  s_a834399ccae02b::t_1f1c9d39e0fd9c 174
+backend/src/main/java/com/featureflag/flags/experiment/ExperimentService.java
+  s_a834399ccae02b::t_132763cabf464a 19,34,66-67,70-71,79,83-84,87,108-109,112,146-147,221-222,225
+  s_a834399ccae02b::t_ded42dfc4de68c 10-12,46-47,50-51,169-173,176-190
+  s_a834399ccae02b::t_05513f9f5aa9fb 10-12,46-47,50-51,169-173,176-190
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceProgressiveRolloutTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 28,64
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 35,75-76
+  s_a834399ccae02b::t_adc961137fdb8f 17,31,588-660
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 34,72-73
+backend/src/main/java/com/featureflag/shared/Validation.java
+  s_a834399ccae02b::t_28d92c4ef75b3d 1-41
+backend/src/main/java/com/featureflag/flags/VariationWeights.java
+  s_a834399ccae02b::t_ffaa7b24486e05 1-127
+backend/src/main/java/com/featureflag/flags/StrategyValidator.java
+  s_a834399ccae02b::t_ee0bd46a5d86e2 1-37,40-59,61-155
+  s_a834399ccae02b::t_89cb91aaaef1ef 38-39,60
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutService.java
+  s_a834399ccae02b::t_132763cabf464a 20,35,74-75,77-78,84,89-90,99,101,105-106,110,198-199,203
+  s_a834399ccae02b::t_a3a4d9add7ebce 14,62-63,237-240,247-250,258,270-293
+backend/src/main/java/com/featureflag/flags/targeting/TargetingService.java
+  s_a834399ccae02b::t_132763cabf464a 19,38,60-61,63-64,70,75,77,81-82,84,113-114,120,165-166,168,200-201,203,222-223,225,251-252,254,280-281,283,299-301,340-341,343,345-347,448
+  s_a834399ccae02b::t_f0daa58e8cbfa2 302-303,353
+  s_a834399ccae02b::t_e70533b0a0a2c3 138-143,157-160,169-173,177,179,183-188,194-198
+backend/src/main/java/com/featureflag/flags/FlagVariationService.java
+  s_a834399ccae02b::t_e27b8494949b6d 1-17,20-27,30-33,36-37,39-93,95-143,145-150,155-187,189-198,201-213
+  s_a834399ccae02b::t_4f3fc1e39b5a22 18-19,28-29,34-35,38,94,144,151-154,188,199-200
+backend/src/main/java/com/featureflag/flags/targeting/SegmentService.java
+  s_a834399ccae02b::t_f0daa58e8cbfa2 30,82-84,86-87,89-90,127-128,149,159,202
+  s_a834399ccae02b::t_bc1a2d862aa1c5 18,49,55,58,220-223,228
+  s_a834399ccae02b::t_cc9c6c61c82613 18,49,55,58,220-223,228
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_a834399ccae02b::t_a6113b4cf6773f 128,130,141
+  s_a834399ccae02b::t_1fd56dc0c58de3 85-88,90-104,120,134,148,244,251,380
+  s_a834399ccae02b::t_74c60cf55c442a 358-378
+  s_a834399ccae02b::t_6be62f7cd34f1b 221,379
+  s_a834399ccae02b::t_cba32adaa0c622 143
+  s_a834399ccae02b::t_28b5d04be9f364 7-8,12
+  s_a834399ccae02b::t_2a66db944bcfc0 137-138
+  s_a834399ccae02b::t_4f8de647e7ae70 285
+  s_a834399ccae02b::t_8b731434e756d0 24-28,55,68-69,300
+  s_a834399ccae02b::t_965ec2862bd252 301-322
+  s_a834399ccae02b::t_6333d0d7737e36 32-33
+  s_a834399ccae02b::t_e229932e3f86ef 110-117
+  s_a834399ccae02b::t_4591c852d43b7a 156-216
+  s_a834399ccae02b::t_5aa99706e4dbcf 47-51,54,59,61,65-67
+  s_a834399ccae02b::t_1f1c9d39e0fd9c 118-119
+backend/src/test/java/com/featureflag/flags/FlagServiceProgressiveRolloutTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 56-57,59
+  s_a834399ccae02b::t_56089feaabda6f 58
+backend/src/main/java/com/featureflag/flags/VariationValidator.java
+  s_a834399ccae02b::t_306f3ef0ba4eae 1-9,12-18,22-92,94-110
+  s_a834399ccae02b::t_05a1c92ea5d7c2 10-11,19-21,93
+backend/src/main/java/com/featureflag/flags/targeting/TargetingValidation.java
+  s_a834399ccae02b::t_28d92c4ef75b3d 1-60
+backend/src/test/java/com/featureflag/flags/targeting/TargetingServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 32,83
+  s_a834399ccae02b::t_a8f0f6accd55d0 38-39,718-781
+  s_a834399ccae02b::t_88822a7dcb1179 193-206
+backend/src/main/java/com/featureflag/flags/FlagEvalController.java
+  s_a834399ccae02b::t_5029414881988e 65
+  s_a834399ccae02b::t_220094a81e5523 66-68
+  s_a834399ccae02b::t_baad9b85d49615 100-101
+  s_a834399ccae02b::t_4d4eee2727159f 50-54
+backend/src/main/java/com/featureflag/flags/FlagAccess.java
+  s_a834399ccae02b::t_28d92c4ef75b3d 1-47
+backend/src/test/java/com/featureflag/flags/FlagServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 74-75,77
+  s_a834399ccae02b::t_75a50fdb9ce5ab 21,27,32-36,52,81-113
+  s_a834399ccae02b::t_b8e83c15e72f8e 5,16,20,23,31,76,615-847
+  s_a834399ccae02b::t_11082d83daf8eb 21,27,32-36,52,81-113
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 33,73
+  s_a834399ccae02b::t_e05850eec4c39e 6-7,9-11,27,42,187-254,284-295
+  s_a834399ccae02b::t_061ced70967e53 6-7,9-11,27,42,187-254,284-295
+backend/src/main/java/com/featureflag/flags/FlagArchiveService.java
+  s_a834399ccae02b::t_5efa6b84e63133 1-17,19-28,32-53,55-71,73-79,81-90,92-103,105-137,139-150,152-175,177-184,188-208,224,225,240-250,251
+  s_a834399ccae02b::t_0c0476c4d7987c 18,29-31,54,72,80,91,104,138,151,176,185-187,209-223,226-239
+backend/src/main/java/com/featureflag/flags/targeting/ClauseValidator.java
+  s_a834399ccae02b::t_f0daa58e8cbfa2 57-58
+  s_a834399ccae02b::t_089a275c030284 169-170,172-174
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationService.java
+  s_a834399ccae02b::t_f0daa58e8cbfa2 15,68-69,91-92,107
+  s_a834399ccae02b::t_98da3fe2beb069 5-6,14,28-29,49-51
+  s_a834399ccae02b::t_3aac1b7e378a38 5-6,14,28-29,49-51
+frontend/src/App.jsx
+  s_a834399ccae02b::t_0caf033a07f606 2,9,13,35-36,48-52,65-75
+frontend/src/features/applications/ApplicationDetailPage.jsx
+  s_a834399ccae02b::t_53cbbdaeaf8610 1-90
+frontend/src/features/applications/ApplicationsPage.jsx
+  s_a834399ccae02b::t_b5431231c3e981 9,11-12,15-17,79-82,88,110,134,137,162-163,170
+frontend/src/features/flags/DependsOnPicker.jsx
+  s_a834399ccae02b::t_270bc89e792222 1,3,6-8,10-13,15,23-31,37,49
+frontend/src/features/flags/FlagDetailPage.jsx
+  s_a834399ccae02b::t_2158645c7c2496 5-6,10-11,21-23,34-35,37,44,48,51-52,96-106,109,118,151,188,213,289-294,300-315
+frontend/src/features/flags/FlagsListPage.jsx
+  s_a834399ccae02b::t_e05feeac1480cd 1,8,10-12,22-26,51-57,59-63,71-74,77-80,86,154,158,160,163,178,233-234
+frontend/src/features/flags/HistoryTab.jsx
+  s_a834399ccae02b::t_66012b30b916f8 2-7,10-12,15,19-24,44,47,50,61,63,96
+frontend/src/features/flags/IndividualTargetsPanel.jsx
+  s_a834399ccae02b::t_3500d11283bac3 99
+frontend/src/features/flags/MetricsTab.jsx
+  s_a834399ccae02b::t_a133e429995915 1,12-15,28,31-34,36-37,46-53,56,63,66,69,71-75,78-82,84-90,94,110,149,194
+frontend/src/features/flags/RolloutCard.jsx
+  s_a834399ccae02b::t_6974b10c8fb4b2 1-106
+frontend/src/features/flags/RolloutDetailPage.jsx
+  s_a834399ccae02b::t_baf0e873a185d2 1-99
+frontend/src/features/flags/RolloutsTab.jsx
+  s_a834399ccae02b::t_0d383a5598fb4b 6-7,9-10,57-58,130-132
+frontend/src/features/flags/RulesPanel.jsx
+  s_a834399ccae02b::t_2048e55c693764 95
+frontend/src/features/flags/StartRolloutDialog.jsx
+  s_a834399ccae02b::t_3ebf1257638202 8
+frontend/src/features/flags/TargetingTab.jsx
+  s_a834399ccae02b::t_4b774e03304c2a 102
+frontend/src/features/flags/rollouts.js
+  s_a834399ccae02b::t_1df35c1630a185 1-18
+frontend/src/features/flags/useRolloutRefresh.js
+  s_a834399ccae02b::t_e811da2efcc14a 1-24
+frontend/src/features/playground/PlaygroundPage.jsx
+  s_a834399ccae02b::t_890531ec6caa52 10,100,106,149,184-189
+frontend/src/features/segments/SegmentDetailPage.jsx
+  s_a834399ccae02b::t_5b2219f89c5742 87,202,317-319,342
+frontend/src/features/segments/SegmentsPage.jsx
+  s_a834399ccae02b::t_fb52a6244ab04f 25
+frontend/src/shared/ClauseListEditor.jsx
+  s_a834399ccae02b::t_9361e1f38afb8c 3,6,8-11,16
+frontend/src/shared/ContextBuilder.jsx
+  s_a834399ccae02b::t_3516bd15d49b4c 2,23,25-28,35,52,69,82,103-106
+frontend/src/shared/Dialog.jsx
+  s_a834399ccae02b::t_5187aa803eb8af 5-7,15-16,22,44
+frontend/src/shared/ErrorBanner.jsx
+  s_a834399ccae02b::t_14b61b20ac9179 9-10,19-23
+frontend/src/shared/ErrorBoundary.jsx
+  s_a834399ccae02b::t_88fe67fdb263d9 1-27
+frontend/src/shared/Pager.jsx
+  s_a834399ccae02b::t_271d01ecfe1edc 1-21
+frontend/src/shared/api/client.js
+  s_a834399ccae02b::t_c9a6a1a3e61226 3-5,16-45,47-50,52-53
+frontend/src/shared/api/flags.js
+  s_a834399ccae02b::t_89c826a1a13b15 5-12,15-17,56-58,161-164,215-221
+frontend/src/shared/api/stream.js
+  s_a834399ccae02b::t_d9b40ab86f6e12 4-5,7-13,15-18,20-25,27-49,51-53,55-58
+frontend/src/shared/router.jsx
+  s_a834399ccae02b::t_7cdb911672ed9e 1,15-36,39-40,48-55
+frontend/src/shared/state/LiveContext.jsx
+  s_a834399ccae02b::t_0c1ffe2f369ac2 8-9,17,20-21
+frontend/src/shared/useCopied.js
+  s_a834399ccae02b::t_477d22ca490da6 1-17
+frontend/src/shared/useDebouncedCallback.js
+  s_a834399ccae02b::t_e9be23ccb0122c 1-15
+frontend/src/shared/useDebouncedValue.js
+  s_a834399ccae02b::t_0cb218b928c499 1-13
+frontend/src/shared/useDraft.js
+  s_a834399ccae02b::t_77e52c4291664b 1-12
+frontend/src/shared/usePagedList.js
+  s_a834399ccae02b::t_104ab575534734 1-34
+frontend/src/shared/useResource.js
+  s_a834399ccae02b::t_310f266a98ace1 4-5,10,17,20,34
+frontend/src/shared/useRowKeys.js
+  s_a834399ccae02b::t_87e78e179ac923 1-19
+frontend/src/styles.css
+  s_a834399ccae02b::t_9b7a53f638c994 2037-2066
+backend/src/test/java/com/featureflag/flags/metrics/TelemetryIndexInitializerIT.java
+  s_a834399ccae02b::t_939100e8d3673c 1-97
+  s_a834399ccae02b::t_1b17a8c68512cc 1-97
+backend/src/test/java/com/featureflag/flags/metrics/ConversionServiceTest.java
+  s_a834399ccae02b::t_1c63268b723965 1-66
+  s_a834399ccae02b::t_100913d821c845 1-66
+backend/src/main/java/com/featureflag/flags/experiment/ThompsonSamplingAllocator.java
+  s_a834399ccae02b::t_6cd3dc775968fc 15-18,25-27,55-56,90-94,96,100-102,108-110,112-114,128-129
+  s_a834399ccae02b::t_b9ce919f3d394b 15-18,25-27,55-56,90-94,96,100-102,108-110,112-114,128-129
+backend/src/main/java/com/featureflag/flags/metrics/ConversionMetricsQueries.java
+  s_a834399ccae02b::t_824650c5d2b5e2 1-12
+  s_a834399ccae02b::t_9c2417e2a7f872 1-12
+backend/src/main/java/com/featureflag/flags/metrics/ConversionMetricsQueriesImpl.java
+  s_a834399ccae02b::t_69535d6d8c433e 1-35
+  s_a834399ccae02b::t_913f0db9dd4e40 1-35
+backend/src/main/java/com/featureflag/flags/metrics/ConversionRepository.java
+  s_a834399ccae02b::t_a8ff310059edb3 9
+  s_a834399ccae02b::t_08c1b76e823e90 9
+backend/src/main/java/com/featureflag/flags/metrics/ConversionService.java
+  s_a834399ccae02b::t_e829d265d44c83 1-45
+  s_a834399ccae02b::t_23e1c0245b28ca 1-45
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionMetricsQueries.java
+  s_a834399ccae02b::t_6b2847b91d7e58 1-15
+  s_a834399ccae02b::t_50982511869dd5 1-15
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionMetricsQueriesImpl.java
+  s_a834399ccae02b::t_17a2e956237162 1-39
+  s_a834399ccae02b::t_631e49807d8ecd 1-39
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionRepository.java
+  s_a834399ccae02b::t_99a598b55f8d89 10
+  s_a834399ccae02b::t_eb97a93adf428b 10
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionWriter.java
+  s_a834399ccae02b::t_2541e02b7fdf1c 1-148
+  s_a834399ccae02b::t_0bdd8e9d25abdd 1-148
+backend/src/main/java/com/featureflag/flags/metrics/MetricsController.java
+  s_a834399ccae02b::t_9477340e76875e 30,32,34,39
+  s_a834399ccae02b::t_aa11ad2b5c8c7c 30,32,34,39
+backend/src/main/java/com/featureflag/flags/metrics/MetricsService.java
+  s_a834399ccae02b::t_e0567575b45e1f 32-35,40,45,48,53-57,61-62,76-77,80-84,108-115,124-125,141-145,162,172,174
+  s_a834399ccae02b::t_57b046d2e28dbe 32-35,40,45,48,53-57,61-62,76-77,80-84,108-115,124-125,141-145,162,172,174
+backend/src/main/java/com/featureflag/flags/metrics/TelemetryIndexInitializer.java
+  s_a834399ccae02b::t_b5c78dc1cecbff 1-71
+  s_a834399ccae02b::t_ce14210f52ce9c 1-71
+backend/src/main/java/com/featureflag/flags/metrics/VariationCount.java
+  s_a834399ccae02b::t_1926b1f7025a23 1-5
+  s_a834399ccae02b::t_b5b4b8fa3c8d6b 1-5
+backend/src/test/java/com/featureflag/flags/FlagEvalControllerIT.java
+  s_a834399ccae02b::t_bc7d2a2348c6b1 32,53-55,163,165,170,186
+  s_a834399ccae02b::t_3de01083b0564b 191-273,275-368
+  s_a834399ccae02b::t_6dc35df4ab96d4 31
+  s_a834399ccae02b::t_513c369643d461 373,375
+  s_a834399ccae02b::t_7f5088cc5fa390 5-6,9
+  s_a834399ccae02b::t_aacea148560638 177
+  s_a834399ccae02b::t_f18701b2bc30b7 116-130
+  s_a834399ccae02b::t_c8bfb0fe51993e 32,53-55,163,165,170,186
+  s_a834399ccae02b::t_40dc1e1ded2f2e 274
+backend/src/test/java/com/featureflag/flags/experiment/ThompsonSamplingAllocatorTest.java
+  s_a834399ccae02b::t_91ccdcba4ec1fb 4,6,73-148
+  s_a834399ccae02b::t_b75a9a31e666d0 4,6,73-148
+backend/src/test/java/com/featureflag/flags/metrics/ImpressionWriterTest.java
+  s_a834399ccae02b::t_813d3535e5c5b6 1-190
+  s_a834399ccae02b::t_f934afc18cdb66 1-190
+backend/src/test/java/com/featureflag/flags/metrics/MetricsControllerIT.java
+  s_a834399ccae02b::t_27adfb73b3e1b5 5,16-17,27-28,31-32,57-59,100-131,135-183,218-228
+  s_a834399ccae02b::t_d0e171890fb4cf 5,16-17,27-28,31-32,57-59,100-131,135-183,218-228
+  s_a834399ccae02b::t_3837d2a686aefa 132-134
+backend/src/test/java/com/featureflag/flags/metrics/MetricsServiceTest.java
+  s_a834399ccae02b::t_383a5a0b1afc74 5,7,23,35,37,41,52,61,122,128-129,131,135-136,138-211,250-253
+  s_a834399ccae02b::t_cc3a4b1ebf949b 5,7,23,35,37,41,52,61,122,128-129,131,135-136,138-211,250-253
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutControllerIT.java
+  s_a834399ccae02b::t_eba1bf5444bc52 47,113-115,264-265
+  s_a834399ccae02b::t_5a9564bbe3d374 294,296,299,301-302,304-308
+  s_a834399ccae02b::t_bb4d42cd6717ba 32,35,108,174,177-178,180-181
+  s_a834399ccae02b::t_2d97227d7836fe 47,113-115,264-265
+backend/src/test/java/com/featureflag/flags/targeting/ExperimentInclusionIT.java
+  s_a834399ccae02b::t_3a31c1f111161b 44,77-79,308-309,327,329-330
+  s_a834399ccae02b::t_a2600a1eb223e8 44,77-79,308-309,327,329-330
+backend/src/test/java/com/featureflag/flags/FlagPagingControllerIT.java
+  s_a834399ccae02b::t_02789fb60de301 1-370
+  s_a834399ccae02b::t_03029edbcc933f 371-372
+  s_a834399ccae02b::t_428620f2505882 1-372
+backend/src/test/java/com/featureflag/flags/targeting/MobileApplicationControllerIT.java
+  s_a834399ccae02b::t_fd7596bab0c8d6 1-311
+  s_a834399ccae02b::t_a4e8d2d5b25abe 312-313
+  s_a834399ccae02b::t_a1b637e71004b9 1-313
+backend/src/test/java/com/featureflag/flags/targeting/SegmentControllerIT.java
+  s_a834399ccae02b::t_0c15a352aae783 1-459
+  s_a834399ccae02b::t_2bd25399fa5b7a 460-469
+  s_a834399ccae02b::t_1751e1a41cfa5a 1-469
+backend/src/main/java/com/featureflag/flags/FlagAdminController.java
+  s_a834399ccae02b::t_f21c199a465b90 6,18,31-32,52-56,58,120-122,124-125,127
+  s_a834399ccae02b::t_aadfdae1d98d3e 6,18,31-32,52-56,58,120-122,124-125,127
+backend/src/main/java/com/featureflag/flags/FlagIndexInitializer.java
+  s_a834399ccae02b::t_59c1fbb531aba0 8-9,30-36
+  s_a834399ccae02b::t_ae7ff88a9e2381 8-9,30-36
+backend/src/main/java/com/featureflag/flags/FlagRepository.java
+  s_a834399ccae02b::t_b6f8e63c6a1a5a 6-7,9,18-22
+  s_a834399ccae02b::t_180c3e551babcd 6-7,9,18-22
+backend/src/main/java/com/featureflag/flags/audit/AuditRepository.java
+  s_a834399ccae02b::t_2d41e6a198a7e3 3-4,9
+  s_a834399ccae02b::t_68f66d650254cd 3-4,9
+backend/src/main/java/com/featureflag/flags/audit/AuditService.java
+  s_a834399ccae02b::t_01e87c1f8a7e62 3-4,7-8,12-13,24-26
+  s_a834399ccae02b::t_3d701a3d549cf1 3-4,7-8,12-13,24-26
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationController.java
+  s_a834399ccae02b::t_e54827e6abda6b 6,15,22-23,37-40,42
+  s_a834399ccae02b::t_e3bdf79cb2b03a 6,15,22-23,37-40,42
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationRepository.java
+  s_a834399ccae02b::t_22286e611a3404 5-6,8,15-18
+  s_a834399ccae02b::t_91a69f51b64580 5-6,8,15-18
+backend/src/main/java/com/featureflag/shared/PageMeta.java
+  s_a834399ccae02b::t_055434298aaae0 1-11
+  s_a834399ccae02b::t_c43de786a16b1e 1-11
+backend/src/main/java/com/featureflag/shared/PageParams.java
+  s_a834399ccae02b::t_e8720512c295eb 1-57
+  s_a834399ccae02b::t_b12c40bdc4d6ac 1-57
+backend/src/test/java/com/featureflag/flags/targeting/MobileApplicationServiceTest.java
+  s_a834399ccae02b::t_275d9bd065a327 18,21-25,31,128-140
+  s_a834399ccae02b::t_dc34ffa8f028d9 18,21-25,31,128-140
+backend/src/test/java/com/featureflag/flags/targeting/SegmentServiceTest.java
+  s_a834399ccae02b::t_d466faff7faf3b 29,52,64,336,350,367,377-420
+  s_a834399ccae02b::t_405900085c9d81 29,52,64,336,350,367,377-420
+backend/src/test/java/com/featureflag/shared/PageParamsTest.java
+  s_a834399ccae02b::t_9064bb1533c736 1-72
+  s_a834399ccae02b::t_4b484177ec7d25 1-72
+backend/src/test/java/com/featureflag/flags/FlagEvaluationExperimentInclusionTest.java
+  s_a834399ccae02b::t_c7a044953c5b06 1-147
+backend/src/test/java/com/featureflag/flags/FlagEvaluationPrerequisiteTest.java
+  s_a834399ccae02b::t_67ec729dd79236 202,208,210-211
+  s_a834399ccae02b::t_3a35c86f9c7f58 1-201,203-207,209,212-251
+backend/src/main/java/com/featureflag/flags/FlagCacheService.java
+  s_a834399ccae02b::t_b3fbc5356a1d9e 16
+  s_a834399ccae02b::t_476f3aa7f03685 44
+  s_a834399ccae02b::t_676f767960aee3 22-23,32-37
+backend/src/test/java/com/featureflag/flags/dto/EvaluationRequestTest.java
+  s_a834399ccae02b::t_0094d68352c998 1-149,151
+  s_a834399ccae02b::t_5a5ccf8c6af6cd 150
+backend/src/test/java/com/featureflag/flags/FlagEvaluationBucketingTest.java
+  s_a834399ccae02b::t_6b85b4ff8d462d 1-165
+backend/src/main/java/com/featureflag/flags/EvaluationReason.java
+  s_a834399ccae02b::t_ea03c9269e9df9 5
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_a834399ccae02b::t_bc85e6c29a545d 4-12,15,17-30,36,39-49,52,54-55,58,60-61,64-65
+backend/src/main/java/com/featureflag/flags/FlagLookup.java
+  s_a834399ccae02b::t_fb0f4b7a6b338c 1-15
+backend/src/main/java/com/featureflag/flags/dto/BootstrapFlagResponse.java
+  s_a834399ccae02b::t_56863a5e2a15b4 3,9-11,13-14,20-23,26-54,57-59
+backend/src/main/java/com/featureflag/flags/dto/EvaluationRequest.java
+  s_a834399ccae02b::t_554f27f016f949 6-7,17-19,23-32,37,45-93,98-101
+backend/src/test/java/com/featureflag/flags/targeting/TargetingEvaluationTest.java
+  s_a834399ccae02b::t_aef4349386760e 459,473-474
+backend/src/test/java/com/featureflag/flags/ConcurrentWritesIT.java
+  s_a834399ccae02b::t_36fcc691bda5cc 1-32,35-201,203-221,223-248,250-279,283
+  s_a834399ccae02b::t_bb19ad3b70955f 280-282,288
+  s_a834399ccae02b::t_2504176d12a3bb 33-34,202,222,249,284-287
+backend/src/test/java/com/featureflag/shared/GlobalExceptionHandlerTest.java
+  s_a834399ccae02b::t_08bedaa15ee2cc 1-79
+backend/src/main/java/com/featureflag/flags/Flag.java
+  s_a834399ccae02b::t_377f064ee97a30 12-13,18,43-50,60,65-73
+backend/src/main/java/com/featureflag/flags/FlagChangeBroadcast.java
+  s_a834399ccae02b::t_459d11e45b7ddf 1-17
+backend/src/main/java/com/featureflag/flags/dto/EnvironmentConfigRequest.java
+  s_a834399ccae02b::t_2d70b38d8a3554 5
+backend/src/main/java/com/featureflag/flags/dto/StrategyRequest.java
+  s_a834399ccae02b::t_6fa3dbaa5ce22f 10
+backend/src/main/java/com/featureflag/flags/rollout/RolloutSchedule.java
+  s_a834399ccae02b::t_f718151d79240e 55-76
+backend/src/main/java/com/featureflag/flags/rollout/dto/RolloutStageRequest.java
+  s_a834399ccae02b::t_5f12893d242346 3
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplication.java
+  s_a834399ccae02b::t_dd95dca0a1e142 8-9,19,32-39,49,54-62
+backend/src/main/java/com/featureflag/flags/targeting/Segment.java
+  s_a834399ccae02b::t_23e8001f8ceb59 12-13,26,49-56,66,71-79
+backend/src/main/java/com/featureflag/flags/targeting/dto/RuleEnabledRequest.java
+  s_a834399ccae02b::t_6afe50509ad48a 3
+backend/src/main/java/com/featureflag/shared/FieldErrors.java
+  s_a834399ccae02b::t_1a5afcd910c383 35-39,44
+backend/src/main/java/com/featureflag/shared/GlobalExceptionHandler.java
+  s_a834399ccae02b::t_e814eaa0d8eeaf 3,6,8-11,18,27-28,39-40,71-97,99-100
+backend/src/test/java/com/featureflag/flags/FlagAdminControllerIT.java
+  s_a834399ccae02b::t_8e9ba88480e654 5,8,346-401,403-436
+  s_a834399ccae02b::t_772f5130a64de1 22-23,25,402,456-459
+backend/src/test/java/com/featureflag/flags/rollout/RolloutScheduleTest.java
+  s_a834399ccae02b::t_99fa7dc1b0babf 125-136
+backend/src/test/java/com/featureflag/flags/targeting/TargetingControllerIT.java
+  s_a834399ccae02b::t_36cdd253874f32 30,32,90,518,521-525,527-529,531-535,539-542,544,546-547
+backend/.env.example
+  s_a834399ccae02b::t_c3455d702aaacb 3-19
+  s_a834399ccae02b::t_513aa8ba66b315 20-24
+backend/src/test/java/com/featureflag/shared/MongoConfigTest.java
+  s_a834399ccae02b::t_b8b84f84dcb4cd 1-36
+backend/src/main/java/com/featureflag/shared/RequestBodyLimitFilter.java
+  s_a834399ccae02b::t_3f058fc6678ec4 1-136
+  s_a834399ccae02b::t_c86b8b7b787bd3 137-142
+backend/src/main/java/com/featureflag/shared/SecurityHeadersFilter.java
+  s_a834399ccae02b::t_2414dae215380a 1-28
+backend/src/main/java/com/featureflag/flags/targeting/ClauseMatcher.java
+  s_a834399ccae02b::t_dad8b3bbbdc909 23-25,31-36
+  s_a834399ccae02b::t_2ad54a9bbf40df 6,10-12,37
+  s_a834399ccae02b::t_614ce2b7d2023a 195-216
+backend/src/main/java/com/featureflag/flags/SeedGuard.java
+  s_a834399ccae02b::t_01fe1e877b2aa6 1-64
+  s_a834399ccae02b::t_04002f1e3a95a0 65
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutControllerIT.java
+  s_a834399ccae02b::t_7e37e2c2932b04 33,35,95-97,635,639-641,643-645,647-650
+backend/src/main/java/com/featureflag/shared/MongoConfig.java
+  s_a834399ccae02b::t_4786cdf414c0ce 3-7,20-36
+package.json
+  s_a834399ccae02b::t_d953d1ffab5f83 15
+backend/src/test/java/com/featureflag/flags/FlagStreamControllerIT.java
+  s_a834399ccae02b::t_e5d85996e641a0 41-43,53,59-62,64
+backend/src/main/java/com/featureflag/flags/targeting/RegexSafety.java
+  s_a834399ccae02b::t_487b1f3b80411f 1-261
+backend/src/main/java/com/featureflag/flags/targeting/BudgetedCharSequence.java
+  s_a834399ccae02b::t_4c0057fa907e09 1-51
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentControllerIT.java
+  s_a834399ccae02b::t_97bf0ae9be3ea6 26,28,47-49,181,186-188,190
+backend/src/main/java/com/featureflag/flags/FlagStreamExceptionHandler.java
+  s_a834399ccae02b::t_045de0a4d46fc8 1-30
+backend/src/test/java/com/featureflag/shared/CustomCorsOriginsIT.java
+  s_a834399ccae02b::t_a8940e63efcd8a 1-43
+backend/src/main/java/com/featureflag/flags/FlagSeeder.java
+  s_a834399ccae02b::t_7c19eeaf4d4397 7-8,44-49,56-59,88,95,114-124
+backend/src/main/java/com/featureflag/flags/FlagStreamService.java
+  s_a834399ccae02b::t_3dc62c1a1c2698 4-5,7-8,10-15,17-21,25-28,35-39,42-83,85,87,89-112,114-117,119-131,133-134,136-137,142,148,155,159-205,207-222,224-225,229-262,266-306
+backend/src/test/java/com/featureflag/flags/SeedGuardTest.java
+  s_a834399ccae02b::t_3d8df2419c48e2 1-79
+Dockerfile
+  s_a834399ccae02b::t_31b687fd345d03 1-35
+backend/src/main/java/com/featureflag/shared/WebConfig.java
+  s_a834399ccae02b::t_11b7f69302bbf1 3-5,10,14-20,23-24
+backend/src/test/java/com/featureflag/flags/SseTestClient.java
+  s_a834399ccae02b::t_79b47cd5ab6a6b 1-111
+backend/src/main/java/com/featureflag/flags/targeting/TargetingCacheService.java
+  s_a834399ccae02b::t_cdb9e6c3ee9174 30-31,43-48
+backend/src/test/java/com/featureflag/flags/FlagStreamTimeoutIT.java
+  s_a834399ccae02b::t_cd6c7f4e4b9587 1-32
+backend/src/test/java/com/featureflag/flags/FlagStreamServiceTest.java
+  s_a834399ccae02b::t_9fff4cc1364728 1-98
+backend/src/test/java/com/featureflag/flags/FlagStreamLimitsIT.java
+  s_a834399ccae02b::t_aeb4373d6e6f63 1-115
+scripts/dev-backend.mjs
+  s_a834399ccae02b::t_93cc8537f54019 1-47
+  s_a834399ccae02b::t_ed3957c9703019 48
+.github/workflows/ci.yml
+  s_a834399ccae02b::t_e0baece4638c90 1-42
+setup.sh
+  s_a834399ccae02b::t_20faa471375a29 27-34,36-39,44,57,63,65
+backend/src/test/java/com/featureflag/shared/HealthControllerTest.java
+  s_a834399ccae02b::t_e889f7a164ee38 1-106
+backend/src/main/java/com/featureflag/shared/HealthController.java
+  s_a834399ccae02b::t_187898dcac659e 66
+  s_a834399ccae02b::t_8518c03ba01d24 12-20,28-33,35-36,49-65
+backend/src/test/java/com/featureflag/FeatureFlagApplicationTest.java
+  s_a834399ccae02b::t_b3cf9ff6549405 1-14
+.dockerignore
+  s_a834399ccae02b::t_c4d609d79e6feb 1-19
+backend/src/test/java/com/featureflag/shared/OperationsIT.java
+  s_a834399ccae02b::t_af3f6d68af558c 128-145
+  s_a834399ccae02b::t_d6d4d379606f41 1-127
+backend/src/test/java/com/featureflag/flags/targeting/ClauseMatcherTest.java
+  s_a834399ccae02b::t_b52dcf6d7c3336 73-95,97-99,107-115
+  s_a834399ccae02b::t_a8534464859edd 4-5,7,96
+  s_a834399ccae02b::t_2c062f75cf9121 72,100-106
+backend/src/main/java/com/featureflag/FeatureFlagApplication.java
+  s_a834399ccae02b::t_09dc4720f9b35d 3-4,11-19,21-23
+frontend/CLAUDE.md
+  s_a834399ccae02b::t_8fbc9da934a980 5,11,13-14,19,23,25-26,33-35,42,47,51-52
+backend/CLAUDE.md
+  s_a834399ccae02b::t_e871b8b5a09082 11,15,17,19,24-29,33-37,41-47,53,57-63
+  s_a834399ccae02b::t_6217f2b49654d2 7,64-65,69,73-76
+CLAUDE.md
+  s_a834399ccae02b::t_b1737ce72ab3b3 32,34,52,54
+README.md
+  s_a834399ccae02b::t_3ec4c00c02e7ab 13,15-17,19-20,24-31,34-36,63,72,74,76,78,117,121,125-127,141,146-170,172,185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e3eb7a7379e33e257109336d0fdef9203f36627f",
+  "prompts": {},
+  "sessions": {
+    "s_a834399ccae02b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a21944f-9765-4f22-b724-f4e6ae68a582",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
