@@ -1,0 +1,71 @@
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_a834399ccae02b::t_a802556eb6ccea 23-30,42-47,49-50,55-57,65,72,77-80,86-87,123,126-128,145,148,151,153,161,189,193,197,201,205,209,213,217
+backend/src/main/java/com/featureflag/flags/experiment/ExperimentService.java
+  s_a834399ccae02b::t_132763cabf464a 16,31,59-60,63-64,72,76-77,80,101-102,105,139-140,197-198,201
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceProgressiveRolloutTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 28,64
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 33,73-74
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 34,72-73
+backend/src/main/java/com/featureflag/shared/Validation.java
+  s_a834399ccae02b::t_28d92c4ef75b3d 1-41
+backend/src/main/java/com/featureflag/flags/VariationWeights.java
+  s_a834399ccae02b::t_ffaa7b24486e05 1-127
+backend/src/main/java/com/featureflag/flags/StrategyValidator.java
+  s_a834399ccae02b::t_ee0bd46a5d86e2 1-153
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutService.java
+  s_a834399ccae02b::t_132763cabf464a 19,34,71-72,74-75,81,86-87,96,98,102-103,107,195-196,200
+backend/src/main/java/com/featureflag/flags/targeting/TargetingService.java
+  s_a834399ccae02b::t_132763cabf464a 19,38,60-61,63-64,70,75,77,81-82,84,113-114,120,159-160,162,179-180,182,201-202,204,230-231,233,259-260,262,278-280,319-320,322,324-326,427
+  s_a834399ccae02b::t_f0daa58e8cbfa2 281-282,332
+backend/src/main/java/com/featureflag/flags/FlagVariationService.java
+  s_a834399ccae02b::t_4928484179b9b5 18
+  s_a834399ccae02b::t_e27b8494949b6d 1-17,19-204
+backend/src/main/java/com/featureflag/flags/targeting/SegmentService.java
+  s_a834399ccae02b::t_f0daa58e8cbfa2 30,82-84,86-87,89-90,127-128,149,159,202
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_a834399ccae02b::t_a6113b4cf6773f 104,106,117
+  s_a834399ccae02b::t_1fd56dc0c58de3 67-70,72-86,96,110,125,162,169,276
+  s_a834399ccae02b::t_74c60cf55c442a 254-274
+  s_a834399ccae02b::t_6be62f7cd34f1b 139,275
+backend/src/test/java/com/featureflag/flags/FlagServiceProgressiveRolloutTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 56-59
+backend/src/main/java/com/featureflag/flags/VariationValidator.java
+  s_a834399ccae02b::t_306f3ef0ba4eae 1-106
+backend/src/main/java/com/featureflag/flags/targeting/TargetingValidation.java
+  s_a834399ccae02b::t_28d92c4ef75b3d 1-60
+backend/src/test/java/com/featureflag/flags/targeting/TargetingServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 32,81
+backend/src/main/java/com/featureflag/flags/FlagEvalController.java
+  s_a834399ccae02b::t_5029414881988e 64
+  s_a834399ccae02b::t_220094a81e5523 65-67
+backend/src/main/java/com/featureflag/flags/FlagAccess.java
+  s_a834399ccae02b::t_28d92c4ef75b3d 1-47
+backend/src/test/java/com/featureflag/flags/FlagServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 61-64
+backend/src/test/java/com/featureflag/flags/experiment/ExperimentServiceTest.java
+  s_a834399ccae02b::t_9f5d1a58153d90 27,66
+backend/src/main/java/com/featureflag/flags/FlagArchiveService.java
+  s_a834399ccae02b::t_5efa6b84e63133 1-223
+backend/src/main/java/com/featureflag/flags/targeting/ClauseValidator.java
+  s_a834399ccae02b::t_f0daa58e8cbfa2 57-58
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationService.java
+  s_a834399ccae02b::t_f0daa58e8cbfa2 15,67-68,90-91,106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a5a824006a0c2f95fd0f7c9273343743192728ed",
+  "prompts": {},
+  "sessions": {
+    "s_a834399ccae02b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a21944f-9765-4f22-b724-f4e6ae68a582",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
