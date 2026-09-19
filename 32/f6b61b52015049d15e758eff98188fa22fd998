@@ -1,0 +1,199 @@
+backend/src/main/java/com/featureflag/flags/EvaluationReason.java
+  s_3eb9b6696efabc::t_31cf5e03d055d8 5-6
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationRepository.java
+  s_3eb9b6696efabc::t_ecb4ec3d8376f0 1-12
+backend/src/test/java/com/featureflag/flags/targeting/SemanticVersionTest.java
+  s_3eb9b6696efabc::t_3d43148cd135bd 1-66
+backend/src/test/java/com/featureflag/flags/targeting/MobileApplicationServiceTest.java
+  s_3eb9b6696efabc::t_a33cbf861324d8 1-142
+backend/src/main/java/com/featureflag/flags/targeting/ClauseMatcher.java
+  s_3eb9b6696efabc::t_ade8da250f3030 127-130
+  s_3eb9b6696efabc::t_1a5225c51e1e4f 1-117,119-126,131-239
+  s_3eb9b6696efabc::t_eb1ae82c6b347b 118
+backend/src/main/java/com/featureflag/flags/targeting/TargetingService.java
+  s_3eb9b6696efabc::t_0e8158cd016441 1-569
+backend/src/test/java/com/featureflag/flags/targeting/TargetingEvaluationTest.java
+  s_3eb9b6696efabc::t_1dabefd46940b7 411-476
+  s_3eb9b6696efabc::t_024fe0fe6e894b 1-410,477-551
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplication.java
+  s_3eb9b6696efabc::t_65ca77e32c7f88 1-94
+backend/src/main/java/com/featureflag/flags/targeting/MemberList.java
+  s_3eb9b6696efabc::t_1a05bce2529f37 1-7
+backend/src/main/java/com/featureflag/flags/targeting/dto/TargetingResponse.java
+  s_3eb9b6696efabc::t_0fe93e460031d9 1-25
+backend/src/main/java/com/featureflag/flags/EnvironmentConfig.java
+  s_3eb9b6696efabc::t_e3ed2e06ff7f67 61-76
+  s_3eb9b6696efabc::t_ab111f8df2fe6f 7-15,24-27
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationController.java
+  s_3eb9b6696efabc::t_68e8e6e70cd482 1-63
+backend/src/main/java/com/featureflag/flags/targeting/dto/SegmentMembersResponse.java
+  s_3eb9b6696efabc::t_e0e19118656449 1-4
+backend/src/main/java/com/featureflag/flags/targeting/SegmentService.java
+  s_3eb9b6696efabc::t_3aa8ebf209b79e 16,235
+  s_3eb9b6696efabc::t_c1616839a7761b 1-15,17-234,236-349
+backend/src/test/java/com/featureflag/flags/FlagServiceTest.java
+  s_3eb9b6696efabc::t_a639c00053f38e 37-38
+  s_3eb9b6696efabc::t_fd1e3a6311367e 254-310
+backend/src/main/java/com/featureflag/flags/targeting/MoveDirection.java
+  s_3eb9b6696efabc::t_d9ab0daeb3e64d 1-6
+backend/src/main/java/com/featureflag/flags/targeting/Segment.java
+  s_3eb9b6696efabc::t_224aaf28f4774f 1-151
+backend/src/main/java/com/featureflag/flags/targeting/ClauseOperator.java
+  s_3eb9b6696efabc::t_e0c734875cea9b 1-40
+backend/src/main/java/com/featureflag/flags/FlagStreamService.java
+  s_3eb9b6696efabc::t_6d054144407182 42-60,69
+backend/src/main/java/com/featureflag/flags/targeting/dto/SegmentSummaryResponse.java
+  s_3eb9b6696efabc::t_66d14359bdc59e 1-19
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplicationService.java
+  s_3eb9b6696efabc::t_df7b3c029be3b6 1-134
+backend/src/test/java/com/featureflag/flags/targeting/TargetingControllerIT.java
+  s_3eb9b6696efabc::t_428ef28ac9da57 1-40,42-278,282-283,285-513,515-518,520-612,615-744
+  s_3eb9b6696efabc::t_0cf7482a24129f 279-281,284
+  s_3eb9b6696efabc::t_d66e3cbd43aa34 41,514,519
+  s_3eb9b6696efabc::t_29518f01844814 613-614
+backend/src/main/java/com/featureflag/flags/FlagSeeder.java
+  s_3eb9b6696efabc::t_db276f18a91a71 23-36,64-75,78-81,89-94,103-108,116,119
+  s_3eb9b6696efabc::t_382d7327b6d009 222-292
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_3eb9b6696efabc::t_39e87ab27ca161 157-165,390-392
+backend/src/main/java/com/featureflag/flags/targeting/dto/ClauseRequest.java
+  s_3eb9b6696efabc::t_74363f2bdceaec 1-10
+backend/src/test/java/com/featureflag/flags/FlagSeederIT.java
+  s_3eb9b6696efabc::t_d9ab4a072949fa 19-23,53-64,128-209,212-213,225-226
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionRepository.java
+  s_3eb9b6696efabc::t_b04c1dfe307775 4,13-15
+backend/src/test/java/com/featureflag/flags/FlagEvalControllerIT.java
+  s_3eb9b6696efabc::t_21993214745315 141-143,146,152,157,162
+backend/src/main/java/com/featureflag/flags/targeting/IndividualTarget.java
+  s_3eb9b6696efabc::t_d8e27d542b974e 1-54
+backend/src/main/java/com/featureflag/flags/targeting/SegmentController.java
+  s_3eb9b6696efabc::t_226f836660d8c0 1-80
+backend/src/main/java/com/featureflag/flags/targeting/dto/BulkChangeSummary.java
+  s_3eb9b6696efabc::t_f3e27baaf2824e 1-5
+backend/src/main/java/com/featureflag/flags/dto/EvaluationRequest.java
+  s_3eb9b6696efabc::t_a3e35da4786f4a 11-14,16-19,24-27
+  s_3eb9b6696efabc::t_fad224d735be1c 3,23,28-42
+backend/src/main/java/com/featureflag/flags/targeting/dto/SegmentCreateRequest.java
+  s_3eb9b6696efabc::t_e5efc83bb4a6e9 1-7
+backend/src/main/java/com/featureflag/flags/targeting/TargetingIndexInitializer.java
+  s_3eb9b6696efabc::t_8402d5fcce04a6 1-30
+backend/src/main/java/com/featureflag/flags/targeting/TargetingController.java
+  s_3eb9b6696efabc::t_ee7301b1a40615 1-94
+backend/src/main/java/com/featureflag/flags/targeting/dto/SegmentUsageResponse.java
+  s_3eb9b6696efabc::t_4699a609985010 1-8
+backend/src/main/java/com/featureflag/flags/targeting/dto/IndividualTargetsRequest.java
+  s_3eb9b6696efabc::t_f0a501d9c4f568 1-7
+backend/src/main/java/com/featureflag/flags/FlagEvaluationService.java
+  s_3eb9b6696efabc::t_c249d90719e792 111-112
+  s_3eb9b6696efabc::t_39e87ab27ca161 7,10,13-17,20-27,34-45,56-61,72,86-110,113-117,149,154
+backend/src/main/java/com/featureflag/flags/targeting/SemanticVersion.java
+  s_3eb9b6696efabc::t_67390107a8f5cc 1-105
+backend/src/main/java/com/featureflag/flags/targeting/dto/IndividualTargetRequest.java
+  s_3eb9b6696efabc::t_809653f859c460 1-6
+backend/src/main/java/com/featureflag/flags/metrics/dto/ExperimentMetricsResponse.java
+  s_3eb9b6696efabc::t_b04c1dfe307775 8-12,14-19
+backend/src/main/java/com/featureflag/flags/targeting/dto/RuleOrderRequest.java
+  s_3eb9b6696efabc::t_cdaa5ebd145933 1-7
+backend/src/main/java/com/featureflag/flags/targeting/SegmentRepository.java
+  s_3eb9b6696efabc::t_0a5b16baf7e581 1-17
+backend/src/test/java/com/featureflag/flags/targeting/TargetingServiceTest.java
+  s_3eb9b6696efabc::t_19437ca996460a 1-626,694-775
+  s_3eb9b6696efabc::t_002cf188670ca4 627-693
+backend/src/main/java/com/featureflag/flags/targeting/dto/BulkTargetRequest.java
+  s_3eb9b6696efabc::t_45a8cc7cd57a76 1-14
+backend/src/main/java/com/featureflag/flags/targeting/dto/SegmentResponse.java
+  s_3eb9b6696efabc::t_1d32df866fd286 1-20
+backend/src/test/java/com/featureflag/flags/targeting/SegmentServiceTest.java
+  s_3eb9b6696efabc::t_f8c2874ef06704 1-429
+backend/src/main/java/com/featureflag/flags/targeting/dto/MobileApplicationUpdateRequest.java
+  s_3eb9b6696efabc::t_081ec8e3292190 1-4
+backend/src/main/java/com/featureflag/flags/targeting/dto/RuleEnabledRequest.java
+  s_3eb9b6696efabc::t_22a86bbf6416be 1-4
+backend/src/main/java/com/featureflag/flags/targeting/dto/SegmentUpdateRequest.java
+  s_3eb9b6696efabc::t_07627323d96286 1-7
+backend/src/main/java/com/featureflag/flags/targeting/TargetingRule.java
+  s_3eb9b6696efabc::t_df9f6bfceb0512 1-137
+backend/src/main/java/com/featureflag/flags/targeting/dto/SegmentMembersRequest.java
+  s_3eb9b6696efabc::t_8e0e6a0daa9d2d 1-10
+backend/src/main/java/com/featureflag/flags/metrics/ConversionEvent.java
+  s_3eb9b6696efabc::t_b04c1dfe307775 30-32,49-54,111-118
+backend/src/main/java/com/featureflag/flags/targeting/RuleCategory.java
+  s_3eb9b6696efabc::t_3578792e3d14ff 1-10
+backend/src/main/java/com/featureflag/flags/targeting/ClauseValidator.java
+  s_3eb9b6696efabc::t_f3853628b1f932 1-179
+backend/src/main/java/com/featureflag/flags/targeting/SegmentRule.java
+  s_3eb9b6696efabc::t_ca445ffe378842 1-41
+backend/src/main/java/com/featureflag/flags/targeting/dto/MobileApplicationRequest.java
+  s_3eb9b6696efabc::t_dccfa3a0d1debd 1-4
+backend/src/main/java/com/featureflag/flags/targeting/TargetingCacheService.java
+  s_3eb9b6696efabc::t_2063c95512df1f 1-81
+backend/src/main/java/com/featureflag/flags/targeting/Clause.java
+  s_3eb9b6696efabc::t_a51e59b2a9df9a 1-81
+backend/src/main/java/com/featureflag/flags/targeting/dto/RuleMoveRequest.java
+  s_3eb9b6696efabc::t_892a8214f53321 1-6
+backend/src/test/java/com/featureflag/flags/targeting/ClauseMatcherTest.java
+  s_3eb9b6696efabc::t_e177a0a032b3a9 1-364
+backend/src/main/java/com/featureflag/flags/metrics/MetricsService.java
+  s_3eb9b6696efabc::t_5e3af8e36a60ab 11,55-62,65,111-125,154-155,167-169,186-192
+  s_3eb9b6696efabc::t_e45157647e47cc 67-68
+backend/src/main/java/com/featureflag/flags/targeting/dto/MobileApplicationResponse.java
+  s_3eb9b6696efabc::t_3e81f6d26167aa 1-15
+backend/src/main/java/com/featureflag/flags/targeting/dto/SegmentRuleRequest.java
+  s_3eb9b6696efabc::t_9a0e481d22aa86 1-7
+backend/src/main/java/com/featureflag/flags/UserContext.java
+  s_3eb9b6696efabc::t_718a796c3afe46 4,7-15,19-23,27-51
+  s_3eb9b6696efabc::t_a4794094c16ce2 18
+backend/src/main/java/com/featureflag/flags/FlagEvalController.java
+  s_3eb9b6696efabc::t_a5d6955639e4c3 50-53
+  s_3eb9b6696efabc::t_8f2b83fa4a9478 3,66-67,95-102
+backend/src/main/java/com/featureflag/flags/targeting/dto/BulkTargetResponse.java
+  s_3eb9b6696efabc::t_4cee7778ed4373 1-4
+backend/src/main/java/com/featureflag/flags/metrics/ImpressionEvent.java
+  s_3eb9b6696efabc::t_b04c1dfe307775 31-37,54-59,116-123
+backend/src/test/java/com/featureflag/flags/metrics/MetricsServiceTest.java
+  s_3eb9b6696efabc::t_fe33ebc16fc608 4
+  s_3eb9b6696efabc::t_de187b6cbfb514 8,21,28,122-133,143-182
+  s_3eb9b6696efabc::t_006da0ad6bb993 134-142
+backend/src/test/java/com/featureflag/flags/targeting/ExperimentInclusionIT.java
+  s_3eb9b6696efabc::t_39206cff1c0f23 322-325,327-329,331,333
+  s_3eb9b6696efabc::t_49a65dc2fad839 136,189,194
+  s_3eb9b6696efabc::t_a7d4e4120df726 155-183
+  s_3eb9b6696efabc::t_a5aed1833781b2 1-110,113,115-118,120-122,124-126,128-131,133-135,137-154,184-188,190-193,195-321,326,330,332,334-347
+  s_3eb9b6696efabc::t_c950b350408191 111-112,114,119,123,127,132
+backend/src/main/java/com/featureflag/flags/targeting/TargetingLookup.java
+  s_3eb9b6696efabc::t_351589c942be5e 1-29
+backend/src/main/java/com/featureflag/shared/GlobalExceptionHandler.java
+  s_3eb9b6696efabc::t_ae988b24e49556 7
+  s_3eb9b6696efabc::t_940f340fad9f84 26-27
+  s_3eb9b6696efabc::t_babe2075250a8b 38-44
+backend/src/main/java/com/featureflag/flags/targeting/TargetingSyncController.java
+  s_3eb9b6696efabc::t_dbe0a086ee1ebe 1-47
+backend/src/main/java/com/featureflag/flags/targeting/BulkOperation.java
+  s_3eb9b6696efabc::t_840a2641f59a54 1-7
+backend/src/main/java/com/featureflag/flags/EvaluationResult.java
+  s_3eb9b6696efabc::t_97f9515944c059 12,18,20,24-25,30-31,33
+  s_3eb9b6696efabc::t_b70f08f1bbef9c 3-8,10,13-17,19,23,26-29,32,34,38
+  s_3eb9b6696efabc::t_f1a8b3382aacdc 11
+backend/src/main/java/com/featureflag/flags/targeting/TargetingLimits.java
+  s_3eb9b6696efabc::t_8437c9e8f9ef07 1-38
+backend/src/main/java/com/featureflag/flags/ContextEntry.java
+  s_3eb9b6696efabc::t_5247ec958e70ea 1-41
+backend/src/main/java/com/featureflag/flags/targeting/dto/TargetingRuleRequest.java
+  s_3eb9b6696efabc::t_df9f6bfceb0512 1-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "32f6b61b52015049d15e758eff98188fa22fd998",
+  "prompts": {},
+  "sessions": {
+    "s_3eb9b6696efabc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6817b363-dc63-4f4c-b23e-7785dca08c44",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
