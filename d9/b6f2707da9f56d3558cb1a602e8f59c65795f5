@@ -1,0 +1,74 @@
+backend/src/test/java/com/featureflag/flags/ConcurrentWritesIT.java
+  s_a834399ccae02b::t_36fcc691bda5cc 1-277,281
+  s_a834399ccae02b::t_bb19ad3b70955f 278-280,282
+backend/src/test/java/com/featureflag/shared/GlobalExceptionHandlerTest.java
+  s_a834399ccae02b::t_08bedaa15ee2cc 1-79
+backend/src/main/java/com/featureflag/flags/Flag.java
+  s_a834399ccae02b::t_377f064ee97a30 12-13,18,43-50,60,65-73
+backend/src/main/java/com/featureflag/flags/FlagArchiveService.java
+  s_a834399ccae02b::t_0c0476c4d7987c 18,29-31,54,72,80,91,104,138,151,176,185-187,209-223,226-239
+backend/src/main/java/com/featureflag/flags/FlagChangeBroadcast.java
+  s_a834399ccae02b::t_459d11e45b7ddf 1-17
+backend/src/main/java/com/featureflag/flags/FlagService.java
+  s_a834399ccae02b::t_c0e00d9a8a1e69 11,74-76,117-124,128,151,162-165,174,180,195,197
+backend/src/main/java/com/featureflag/flags/FlagVariationService.java
+  s_a834399ccae02b::t_4f3fc1e39b5a22 18-19,28-29,34-35,38,94,144,151-154,188,199-200
+backend/src/main/java/com/featureflag/flags/StrategyValidator.java
+  s_a834399ccae02b::t_89cb91aaaef1ef 38-39,60
+backend/src/main/java/com/featureflag/flags/VariationValidator.java
+  s_a834399ccae02b::t_05a1c92ea5d7c2 10-11,19-21,93
+backend/src/main/java/com/featureflag/flags/dto/EnvironmentConfigRequest.java
+  s_a834399ccae02b::t_2d70b38d8a3554 5
+backend/src/main/java/com/featureflag/flags/dto/StrategyRequest.java
+  s_a834399ccae02b::t_6fa3dbaa5ce22f 10
+backend/src/main/java/com/featureflag/flags/rollout/ProgressiveRolloutService.java
+  s_a834399ccae02b::t_a3a4d9add7ebce 14,62-63,237-240,247-250,258,270-293
+backend/src/main/java/com/featureflag/flags/rollout/RolloutSchedule.java
+  s_a834399ccae02b::t_f718151d79240e 55-76
+backend/src/main/java/com/featureflag/flags/rollout/dto/RolloutStageRequest.java
+  s_a834399ccae02b::t_5f12893d242346 3
+backend/src/main/java/com/featureflag/flags/targeting/MobileApplication.java
+  s_a834399ccae02b::t_dd95dca0a1e142 8-9,19,32-39,49,54-62
+backend/src/main/java/com/featureflag/flags/targeting/Segment.java
+  s_a834399ccae02b::t_23e8001f8ceb59 12-13,26,49-56,66,71-79
+backend/src/main/java/com/featureflag/flags/targeting/TargetingService.java
+  s_a834399ccae02b::t_e70533b0a0a2c3 138-143,157-160,169-173,177,179,183-188,194-198
+backend/src/main/java/com/featureflag/flags/targeting/dto/RuleEnabledRequest.java
+  s_a834399ccae02b::t_6afe50509ad48a 3
+backend/src/main/java/com/featureflag/shared/FieldErrors.java
+  s_a834399ccae02b::t_1a5afcd910c383 35-39,44
+backend/src/main/java/com/featureflag/shared/GlobalExceptionHandler.java
+  s_a834399ccae02b::t_e814eaa0d8eeaf 3,6,8-11,18,27-28,39-40,71-97,99-100
+backend/src/test/java/com/featureflag/flags/FlagAdminControllerIT.java
+  s_a834399ccae02b::t_8e9ba88480e654 5,8,343-433
+backend/src/test/java/com/featureflag/flags/FlagEvalControllerIT.java
+  s_a834399ccae02b::t_f18701b2bc30b7 108-122
+backend/src/test/java/com/featureflag/flags/FlagServiceProgressiveRolloutTest.java
+  s_a834399ccae02b::t_56089feaabda6f 58
+backend/src/test/java/com/featureflag/flags/FlagServiceTest.java
+  s_a834399ccae02b::t_b8e83c15e72f8e 5,16,20,22,29,68,574-806
+backend/src/test/java/com/featureflag/flags/rollout/ProgressiveRolloutServiceTest.java
+  s_a834399ccae02b::t_adc961137fdb8f 17,31,588-660
+backend/src/test/java/com/featureflag/flags/rollout/RolloutScheduleTest.java
+  s_a834399ccae02b::t_99fa7dc1b0babf 125-136
+backend/src/test/java/com/featureflag/flags/rollout/RuleProgressiveRolloutControllerIT.java
+  s_a834399ccae02b::t_5a9564bbe3d374 300,302,305,307-308,310-314
+backend/src/test/java/com/featureflag/flags/targeting/TargetingServiceTest.java
+  s_a834399ccae02b::t_a8f0f6accd55d0 38-39,704-767
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d9b6f2707da9f56d3558cb1a602e8f59c65795f5",
+  "prompts": {},
+  "sessions": {
+    "s_a834399ccae02b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a21944f-9765-4f22-b724-f4e6ae68a582",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "sarthakuwar <kuwarsarthak711@gmail.com>"
+    }
+  }
+}
